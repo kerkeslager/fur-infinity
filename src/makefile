@@ -1,5 +1,5 @@
-all: clean code.o compiler.o runtime.o scanner.o value.o main.o
-	gcc {code,compiler,runtime,scanner,value,main}.o -o fur
+all: clean code.o compiler.o parser.o runtime.o scanner.o value.o main.o
+	gcc {code,compiler,parser,runtime,scanner,value,main}.o -o fur
 
 code.o:
 	gcc -c code.c -o code.o
@@ -9,6 +9,9 @@ compiler.o:
 
 main.o:
 	gcc -c main.c -o main.o
+
+parser.o:
+	gcc -c parser.c -o parser.o
 
 scanner.o:
 	gcc -c scanner.c -o scanner.o
