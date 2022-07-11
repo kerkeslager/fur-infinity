@@ -104,7 +104,18 @@ Code* Compiler_compile(Compiler* self, char* source) {
   Code* result = Code_new();
 
   emitNode(result, tree);
-  emitByte(result, OP_RETURN, scanner.line);
+
+  /*
+   * TODO We need to emit this because otherwise the runtime doesn't know
+   * it's time to return. However, we don't want to require an explicit
+   * return at the end of files, so there's no line associated with this
+   * instruction. It probably makes sense for this to be the line of the
+   * EOF in the file, but getting that requires some plumbing. Using 0
+   * until I can get around to implementing this.
+   */
+  emitByte(result, OP_RETURN, 0);
+
+  Node_free(tree);
 
   return result;
 }

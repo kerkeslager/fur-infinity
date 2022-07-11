@@ -6,14 +6,16 @@
 
 #include "code.h"
 #include "compiler.h"
+#include "parser.h"
 #include "runtime.h"
+#include "scanner.h"
 #include "value.h"
 
 typedef enum {
-  RUN,
   SCAN,
   PARSE,
   COMPILE,
+  RUN,
 } Action;
 
 typedef struct {
@@ -21,6 +23,105 @@ typedef struct {
   bool version;
   Action action;
 } Options;
+
+const char* tokenTypeAsString(TokenType type) {
+    switch(type) {
+      case TOKEN_NIL: return "TOKEN_NIL";
+      case TOKEN_TRUE: return "TOKEN_TRUE";
+      case TOKEN_FALSE: return "TOKEN_FALSE";
+      case TOKEN_IDENTIFIER: return "TOKEN_IDENTIFIER";
+      case TOKEN_NUMBER: return "TOKEN_NUMBER";
+      case TOKEN_PLUS: return "TOKEN_PLUS";
+      case TOKEN_MINUS: return "TOKEN_MINUS";
+      case TOKEN_STAR: return "TOKEN_STAR";
+      case TOKEN_SLASH: return "TOKEN_SLASH";
+
+      case TOKEN_ERROR: return "TOKEN_ERROR";
+      case TOKEN_EOF: return "TOKEN_EOF";
+
+      default: return NULL;
+    }
+}
+
+void printScan(Scanner* scanner) {
+  Token token;
+
+  size_t previousLine = 0;
+
+  printf("    Line   Type              Text\n");
+  printf("---------------------------------------------\n");
+
+  while((token = Scanner_scan(scanner)).type != TOKEN_EOF) {
+    const char* tokenTypeString = tokenTypeAsString(token.type);
+
+    if(token.line == previousLine) {
+      printf("       |   ");
+    } else {
+      previousLine = token.line;
+      printf("%8zu   ", token.line);
+    }
+
+    if(tokenTypeString == NULL) {
+      printf("<unknown>          ");
+    } else {
+      printf("%-19s", tokenTypeAsString(token.type));
+    }
+
+    printf( "\"%.*s\"\n", (int)token.length, token.text);
+  }
+}
+
+static void printNode(Node*);
+
+static void printBinaryNode(char* name, BinaryNode* node) {
+  printf("(%s ", name);
+  printNode(node->arg0);
+  printf(" ");
+  printNode(node->arg1);
+  printf(")");
+}
+
+static void printNode(Node* node) {
+  if(node == NULL) {
+    printf("NULL");
+    fflush(stdout);
+    return;
+  }
+
+  switch(node->type) {
+    case NODE_ADD:
+      printBinaryNode("+\0", (BinaryNode*)node);
+      break;
+    case NODE_SUBTRACT:
+      printBinaryNode("-\0", (BinaryNode*)node);
+      break;
+    case NODE_MULTIPLY:
+      printBinaryNode("*\0", (BinaryNode*)node);
+      break;
+    case NODE_DIVIDE:
+      printBinaryNode("/\0", (BinaryNode*)node);
+      break;
+
+    case NODE_NIL:
+      printf("nil");
+      break;
+    case NODE_TRUE:
+      printf("true");
+      break;
+    case NODE_FALSE:
+      printf("false");
+      break;
+    case NODE_IDENTIFIER:
+      printf("<var \"%.*s\">", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
+      break;
+    case NODE_NUMBER:
+      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
+      break;
+
+    default:
+      assert(false);
+  }
+}
 
 void printCodeAsAssembly(Code* code) {
   assert(false);
@@ -30,10 +131,20 @@ static int repl(Options options) {
   Compiler compiler;
   Compiler_init(&compiler);
 
+  /*
+   * We want a consistent runtime to maintain state across evals, so that
+   * users can do things in the REPL like:
+   *
+   * > greeting = 'Hello, world'
+   * > print(greeting)
+   * Hello, world>
+   */
   Runtime runtime;
   Runtime_init(&runtime);
 
   char line[1024];
+
+  size_t lineNumber = 1;
 
   for(;;) {
     printf("> ");
@@ -43,11 +154,31 @@ static int repl(Options options) {
       break;
     }
 
+    Scanner scanner;
+    Scanner_init(&scanner, line);
+
+    /*
+     * This is a bit of a hack to get line numbers to increase in the REPL.
+     */
+    scanner.line = lineNumber;
+    lineNumber++;
+
     switch(options.action) {
       case SCAN:
-        assert(false); // Not implemented
+        {
+          printScan(&scanner);
+        } break;
+
       case PARSE:
-        assert(false); // Not implemented
+        {
+          Node* tree = parse(&scanner);
+
+          printNode(tree);
+          printf("\n");
+
+          Node_free(tree);
+        } break;
+
       case COMPILE:
         {
           Code* code = Compiler_compile(&compiler, line);
@@ -188,6 +319,8 @@ int main(int argc, char** argv) {
         // Long form arguments
         if(!strcmp("--help", argv[i])) {
           options.help = true;
+        } else if(!strcmp("--scan", argv[i])) {
+          options.action = SCAN;
         } else if(!strcmp("--version", argv[i])) {
           options.version = true;
         } else {
