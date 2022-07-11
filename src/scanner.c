@@ -20,6 +20,7 @@ static void Scanner_scanWhitespace(Scanner* self) {
       case '\t':
       case '\r':
         self->current++;
+        break;
 
       default:
         return;
@@ -40,7 +41,7 @@ static Token makeError(char* text, size_t line) {
   return makeToken(TOKEN_ERROR, text, strlen(text), line);
 }
 
-bool isAlphaNumeric(char ch) {
+static bool isAlphaNumeric(char ch) {
   switch(ch) {
     case 'a':
     case 'b':
@@ -109,11 +110,34 @@ bool isAlphaNumeric(char ch) {
       return false;
   }
 }
+static bool isNumeric(char ch) {
+  switch(ch) {
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      return true;
+    default:
+      return false;
+  }
+}
 
 static Token Scanner_scanIdentifier(Scanner* self, char* start) {
   while(isAlphaNumeric(*(self->current))) self->current++;
 
   return makeToken(TOKEN_IDENTIFIER, start, self->current - start, self->line);
+}
+
+static Token Scanner_scanNumber(Scanner* self, char* start) {
+  while(isNumeric(*(self->current))) self->current++;
+
+  return makeToken(TOKEN_NUMBER, start, self->current - start, self->line);
 }
 
 static Token Scanner_scanKeyword(Scanner* self, char* start, const char* suffix, TokenType type) {
@@ -212,6 +236,21 @@ Token Scanner_scan(Scanner* self) {
         return Scanner_scanIdentifier(self, start);
       }
 
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      {
+        char* start = self->current;
+        self->current++;
+        return Scanner_scanNumber(self, start);
+      }
     case '+':
       self->current++;
       return makeToken(TOKEN_PLUS, self->current - 1, 1, self->line);
