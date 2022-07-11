@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 static Node makeNode(NodeType type, size_t line) {
   Node result;
@@ -76,7 +77,7 @@ const static PrecedenceRule PRECEDENCE_TABLE[] = {
   [TOKEN_SLASH] =      { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE, false },
 };
 
-Node* parse(Scanner* scanner, Precedence minimumBindingPower) {
+Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
   /*
    * This function is the core of the Pratt algorithm.
    *
@@ -88,22 +89,32 @@ Node* parse(Scanner* scanner, Precedence minimumBindingPower) {
   Node* leftOperand = NULL;
 
   switch(token.type) {
+    #define MAKE_ATOM(TYPE) \
+      makeAtomNode(TYPE, token.line, token.text, token.length)
     case TOKEN_NIL:
-      leftOperand = makeAtomNode(NODE_NIL, token.line, token.text, token.length);
+      leftOperand = MAKE_ATOM(NODE_NIL);
+      break;
     case TOKEN_TRUE:
-      leftOperand = makeAtomNode(NODE_TRUE, token.line, token.text, token.length);
+      leftOperand = MAKE_ATOM(NODE_TRUE);
+      break;
     case TOKEN_FALSE:
-      leftOperand = makeAtomNode(NODE_FALSE, token.line, token.text, token.length);
+      leftOperand = MAKE_ATOM(NODE_FALSE);
+      break;
     case TOKEN_IDENTIFIER:
-      leftOperand = makeAtomNode(NODE_IDENTIFIER, token.line, token.text, token.length);
+      leftOperand = MAKE_ATOM(NODE_IDENTIFIER);
+      break;
     case TOKEN_NUMBER:
-      leftOperand = makeAtomNode(NODE_NUMBER, token.line, token.text, token.length);
+      leftOperand = MAKE_ATOM(NODE_NUMBER);
+      break;
     case TOKEN_EOF:
       return NULL;
+    #undef MAKE_ATOM
 
     default:
       assert(false); // TODO Better handling.
   }
+
+  assert(leftOperand != NULL);
 
   /*
    * The basic case is an infix operation, which consists of a operator
@@ -112,7 +123,9 @@ Node* parse(Scanner* scanner, Precedence minimumBindingPower) {
    */
 
   for(;;) {
-    Token operator = Scanner_scan(scanner);
+    Token operator = Scanner_peek(scanner);
+
+    if(operator.type == TOKEN_EOF) return leftOperand;
 
     Precedence leftBindingPower = PRECEDENCE_TABLE[operator.type].infixLeft;
 
@@ -120,7 +133,9 @@ Node* parse(Scanner* scanner, Precedence minimumBindingPower) {
       break;
     }
 
-    Node* rightOperand = parse(scanner, PRECEDENCE_TABLE[operator.type].infixRight);
+    Scanner_scan(scanner);
+
+    Node* rightOperand = parseInternal(scanner, PRECEDENCE_TABLE[operator.type].infixRight);
 
     NodeType infixOperatorType;
 
@@ -138,7 +153,8 @@ Node* parse(Scanner* scanner, Precedence minimumBindingPower) {
         infixOperatorType = NODE_DIVIDE;
         break;
       default:
-        assert(false); // TODO Handle this better
+        printf("Unkown infix operator: \"%.*s\"", (int)operator.length, operator.text);
+        exit(1);
     }
 
     leftOperand = makeBinaryNode(
@@ -150,4 +166,44 @@ Node* parse(Scanner* scanner, Precedence minimumBindingPower) {
   }
 
   return leftOperand;
+}
+
+void Node_free(Node* self) {
+  switch(self->type) {
+    // TODO Clean up arg2 for ternary node types here
+
+    // Binary nodes
+    case NODE_ADD:
+    case NODE_SUBTRACT:
+    case NODE_MULTIPLY:
+    case NODE_DIVIDE:
+      Node_free(((BinaryNode*)self)->arg1);
+      // Don't break, cascade to further cleanup
+
+    // Unary nodes
+      Node_free(((UnaryNode*)self)->arg);
+      // Don't break, cascade to further cleanup
+
+    // Atom nodes
+    case NODE_NIL:
+    case NODE_TRUE:
+    case NODE_FALSE:
+    case NODE_IDENTIFIER:
+    case NODE_NUMBER:
+      // Note that we don't clean up the text associated with atom nodes
+      // This is because it contains pointers to source, which we will clean up once
+      // the parse is done and code generated.
+
+      // TODO Free the source once parse is done and code is generated. :)
+      break;
+
+    default:
+      assert(false);
+  }
+
+  free(self);
+}
+
+Node* parse(Scanner* scanner) {
+  return parseInternal(scanner, PREC_NONE);
 }

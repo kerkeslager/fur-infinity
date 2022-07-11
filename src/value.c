@@ -3,9 +3,9 @@
 #include "value.h"
 
 void Value_printRepr(Value value) {
-  printf("%d", value.integer);
+  printf("%d", value.as.integer);
 }
 
 int Value_asSuccess(Value value) {
-  return (int)value.integer;
+  return (int)value.as.integer;
 }

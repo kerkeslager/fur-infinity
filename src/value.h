@@ -4,7 +4,9 @@
 #include <stdint.h>
 
 typedef struct {
-  int32_t integer;
+  union {
+    int32_t integer;
+  } as;
 } Value;
 
 void Value_printRepr(Value);

@@ -7,6 +7,7 @@ void Scanner_init(Scanner* self, char* source) {
   self->source = source;
   self->current = source;
   self->line = 1;
+  self->hasLookahead = false;
 }
 
 static void Scanner_scanWhitespace(Scanner* self) {
@@ -156,7 +157,13 @@ static Token Scanner_scanKeyword(Scanner* self, char* start, const char* suffix,
   }
 }
 
-Token Scanner_scan(Scanner* self) {
+static Token Scanner_scanInternal(Scanner* self) {
+  /*
+   * This is the core function of the scanner, but it's wrapped in the
+   * Scanner_scan() and Scanner_peek() functions. The only purpose of
+   * this wrapping is to manage the self->lookahead and self->hasLookahead
+   * properties.
+   */
   Scanner_scanWhitespace(self);
 
   switch(*(self->current)) {
@@ -271,4 +278,22 @@ Token Scanner_scan(Scanner* self) {
       // TODO More detailed error message and a sane length value
       return makeToken(TOKEN_ERROR, "Scan error.", 0, self->line);
   }
+}
+
+Token Scanner_scan(Scanner* self) {
+  if(self->hasLookahead) {
+    self->hasLookahead = false;
+    return self->lookahead;
+  }
+
+  return Scanner_scanInternal(self);
+}
+
+Token Scanner_peek(Scanner* self) {
+  if(!self->hasLookahead) {
+    self->lookahead = Scanner_scanInternal(self);
+    self->hasLookahead = true;
+  }
+
+  return self->lookahead;
 }

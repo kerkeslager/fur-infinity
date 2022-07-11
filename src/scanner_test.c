@@ -2,40 +2,54 @@
 
 #include "scanner.h"
 
+const char* tokenTypeAsString(TokenType type) {
+    switch(type) {
+      case TOKEN_NIL: return "TOKEN_NIL";
+      case TOKEN_TRUE: return "TOKEN_TRUE";
+      case TOKEN_FALSE: return "TOKEN_FALSE";
+      case TOKEN_IDENTIFIER: return "TOKEN_IDENTIFIER";
+      case TOKEN_NUMBER: return "TOKEN_NUMBER";
+      case TOKEN_PLUS: return "TOKEN_PLUS";
+      case TOKEN_MINUS: return "TOKEN_MINUS";
+      case TOKEN_STAR: return "TOKEN_STAR";
+      case TOKEN_SLASH: return "TOKEN_SLASH";
+
+      case TOKEN_ERROR: return "TOKEN_ERROR";
+      case TOKEN_EOF: return "TOKEN_EOF";
+
+      default: return NULL;
+    }
+}
+
 int main() {
-  const char* input = "1234567890 + - \n * \t / blink182 true false nil";
+  char* input = "1234567890 + - \n * \t / blink182 true false nil 82foo aBaB8\0";
 
   Scanner scanner;
   Scanner_init(&scanner, input);
 
   Token token;
 
+  size_t previousLine = 0;
+
+  printf("    Line   Type              Text\n");
+  printf("---------------------------------------------\n");
+
   while((token = Scanner_scan(&scanner)).type != TOKEN_EOF) {
-    printf("Token ");
+    const char* tokenTypeString = tokenTypeAsString(token.type);
 
-    switch(token.type) {
-      case TOKEN_NIL: printf("TOKEN_NIL"); break;
-      case TOKEN_TRUE: printf("TOKEN_TRUE"); break;
-      case TOKEN_FALSE: printf("TOKEN_FALSE"); break;
-      case TOKEN_IDENTIFIER: printf("TOKEN_IDENTIFIER"); break;
-      case TOKEN_NUMBER: printf("TOKEN_NUMBER"); break;
-      case TOKEN_PLUS: printf("TOKEN_PLUS"); break;
-      case TOKEN_MINUS: printf("TOKEN_MINUS"); break;
-      case TOKEN_STAR: printf("TOKEN_STAR"); break;
-      case TOKEN_SLASH: printf("TOKEN_SLASH"); break;
-
-      case TOKEN_ERROR: printf("TOKEN_ERROR"); break;
-      case TOKEN_EOF: printf("TOKEN_EOF"); break;
-
-      default: printf("Unknown token type"); break;
+    if(token.line == previousLine) {
+      printf("       |   ");
+    } else {
+      previousLine = token.line;
+      printf("%8zu   ", token.line);
     }
 
-    printf(", line %zu: ", token.line);
-
-    for(int i = 0; i < token.length && i < 10; i++) {
-      printf("%c", token.text[i]);
+    if(tokenTypeString == NULL) {
+      printf("<unknown>          ");
+    } else {
+      printf("%-19s", tokenTypeAsString(token.type));
     }
 
-    printf("\n");
+    printf( "\"%.*s\"\n", (int)token.length, token.text);
   }
 }

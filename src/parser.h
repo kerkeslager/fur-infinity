@@ -3,6 +3,8 @@
 
 #include <stdlib.h>
 
+#include "scanner.h"
+
 typedef enum {
   // Atom nodes
   NODE_NIL,
@@ -48,5 +50,13 @@ typedef struct {
   Node* arg1;
   Node* arg2;
 } TernaryNode;
+
+/*
+ * TODO It might be even better to just pass in source, and also hide
+ * the Scanner type.
+ */
+Node* parse(Scanner*);
+
+void Node_free(Node*);
 
 #endif
