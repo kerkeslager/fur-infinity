@@ -83,6 +83,8 @@ Value Thread_run(Thread* self, Code* code) {
   size_t index = 0;
 
   for(;;) {
+    assert(index < code->instructions.length);
+
     switch(Code_get(code, index)) {
       case OP_NIL:
       case OP_TRUE:

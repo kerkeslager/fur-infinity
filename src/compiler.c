@@ -104,6 +104,7 @@ Code* Compiler_compile(Compiler* self, char* source) {
   Code* result = Code_new();
 
   emitNode(result, tree);
+  emitByte(result, OP_RETURN, scanner.line);
 
   return result;
 }
