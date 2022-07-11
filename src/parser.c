@@ -74,7 +74,7 @@ const static PrecedenceRule PRECEDENCE_TABLE[] = {
   [TOKEN_PLUS] =       { PREC_NONE, PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE, false },
   [TOKEN_MINUS] =      { PREC_NONE, PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE, false },
   [TOKEN_STAR] =       { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE, false },
-  [TOKEN_SLASH] =      { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE, false },
+  [TOKEN_SLASH] =      { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE, false },
 };
 
 Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {

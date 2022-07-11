@@ -319,6 +319,8 @@ int main(int argc, char** argv) {
         // Long form arguments
         if(!strcmp("--help", argv[i])) {
           options.help = true;
+        } else if(!strcmp("--parse", argv[i])) {
+          options.action = PARSE;
         } else if(!strcmp("--scan", argv[i])) {
           options.action = SCAN;
         } else if(!strcmp("--version", argv[i])) {
