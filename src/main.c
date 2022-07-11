@@ -124,7 +124,63 @@ static void printNode(Node* node) {
 }
 
 void printCodeAsAssembly(Code* code) {
-  assert(false);
+  size_t lineRunIndex = 0;
+  size_t lineRunCounter = 0;
+
+  for(size_t i = 0; i < code->instructions.length; i++) {
+    char opString[20] = "";
+    char argString[20] = "";
+
+    assert(lineRunIndex < code->lineRuns.length);
+
+    if(lineRunCounter == code->lineRuns.items[lineRunIndex].run) {
+      lineRunIndex++;
+    }
+
+    size_t line = code->lineRuns.items[lineRunIndex].line;
+
+    switch(code->instructions.items[i]) {
+      case OP_NIL:
+        strcpy(opString, "push_nil");
+        break;
+      case OP_TRUE:
+        strcpy(opString, "push_true");
+        break;
+      case OP_FALSE:
+        strcpy(opString, "push_false");
+        break;
+      case OP_INTEGER:
+        strcpy(opString, "push_int");
+        sprintf(
+            argString,
+            "%d",
+            *((int32_t*)(code->instructions.items + i + 1))
+        );
+        i += sizeof(int32_t);
+        break;
+      case OP_ADD:
+        strcpy(opString, "add");
+        break;
+      case OP_SUBTRACT:
+        strcpy(opString, "sub");
+        break;
+      case OP_MULTIPLY:
+        strcpy(opString, "mul");
+        break;
+      case OP_DIVIDE:
+        // This is "integer divide", i.e. 3 / 2 = 1
+        // Distinguished from "divide", i.e. 3 / 2 = 1.5
+        strcpy(opString, "int_div");
+        break;
+      case OP_RETURN:
+        strcpy(opString, "ret");
+        break;
+      default:
+        assert(false);
+    }
+
+    printf("%-10s %-5s ; %zu\n", opString, argString, line);
+  }
 }
 
 static int repl(Options options) {
@@ -233,27 +289,67 @@ static char* readFile(const char* path) {
 
 
 int runString(Options options, char* source, int argc, char** argv) {
-  Compiler compiler;
-  Compiler_init(&compiler);
+  switch(options.action) {
+    case SCAN:
+      {
+        Scanner scanner;
+        Scanner_init(&scanner, source);
+        printScan(&scanner);
+        free(source);
+        return 0;
+      }
 
-  Runtime runtime;
-  Runtime_init(&runtime);
+    case PARSE:
+      {
+        Scanner scanner;
+        Scanner_init(&scanner, source);
+        Node* tree = parse(&scanner);
+        printNode(tree);
+        Node_free(tree);
+        return 0;
+      }
 
-  Code* code = Compiler_compile(&compiler, source);
-  Value result = Runtime_run(&runtime, code);
+    case COMPILE:
+      {
+        Compiler compiler;
+        Compiler_init(&compiler);
+        Code* code = Compiler_compile(&compiler, source);
+        printCodeAsAssembly(code);
+        Compiler_free(&compiler);
+        return 0;
+      }
 
-  Compiler_free(&compiler);
-  Runtime_free(&runtime);
+    case RUN:
+      {
+        Compiler compiler;
+        Compiler_init(&compiler);
 
-  free(source);
+        Runtime runtime;
+        Runtime_init(&runtime);
 
-  return Value_asSuccess(result);
+        Code* code = Compiler_compile(&compiler, source);
+        Value result = Runtime_run(&runtime, code);
+
+        Compiler_free(&compiler);
+        Runtime_free(&runtime);
+
+        return Value_asSuccess(result);
+      }
+
+    default:
+      assert(false);
+      return 1; // Just to quiet the cc
+  }
 }
 
 int runFile(Options options, char* filename, int argc, char** argv) {
   char* source = readFile(filename);
 
-  return runString(options, source, argc, argv);
+  int result = runString(options, source, argc, argv);
+
+  free(source);
+
+  return result;
 }
 
 void printVersion() {
@@ -317,7 +413,9 @@ int main(int argc, char** argv) {
         return runString(options, argv[i], argc - i - 1, argv + i + 1);
       } else if(argv[i][1] == '-') {
         // Long form arguments
-        if(!strcmp("--help", argv[i])) {
+        if(!strcmp("--compile", argv[i])) {
+          options.action = COMPILE;
+        } else if(!strcmp("--help", argv[i])) {
           options.help = true;
         } else if(!strcmp("--parse", argv[i])) {
           options.action = PARSE;

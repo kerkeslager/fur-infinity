@@ -16,66 +16,60 @@ inline static void emitByte(Code* code, size_t line, uint8_t byte) {
   Code_append(code, byte, line);
 }
 
-static void emitBytes(Code* code, size_t line, int argc, ...) {
-  va_list bytes;
-  va_start(bytes, argc);
+inline static void emitInteger(Code* code, size_t line, int32_t integer) {
+  /*
+   * TODO If you trace what this does it's sort of a mess.
+   *
+   * However, I don't want to rewrite it now because this code may go
+   * away;  we might remove the OP_INTEGER instruction in favor of an
+   * OP_CONSTANT instruction which places the integer (or any other
+   * constant) in a constant table on the Code object. There are some
+   * tradeoffs here:
+   *
+   * PROS:
+   * - Less space used in bytecode.
+   * - We can deduplicate integers and use less space in the constant
+   *   table as well.
+   * CONS:
+   * - Add a pointer lookup at runtime when pushing integers to the
+   *   stack.
+   *
+   * Ultimately, let's wait to make a decision on this until we have
+   * performance tests to be our guide.
+   */
 
-  for(int i = 0; i < argc; i++) {
-    emitByte(code, (uint8_t)(va_arg(bytes, int)), line);
-  }
+  uint8_t* bytes = (uint8_t*)(&integer);
+  for(int i = 0; i < 4; i++) emitByte(code, line, bytes[i]);
 }
 
 static void emitNode(Code* code, Node* node) {
   switch(node->type) {
     case NODE_NIL:
-      emitByte(code, 0, (uint8_t)OP_NIL);
-      break;
+      emitByte(code, node->line, (uint8_t)OP_NIL);
+      return;
     case NODE_TRUE:
-      emitByte(code, 0, (uint8_t)OP_TRUE);
-      break;
+      emitByte(code, node->line, (uint8_t)OP_TRUE);
+      return;
     case NODE_FALSE:
-      emitByte(code, 0, (uint8_t)OP_FALSE);
-      break;
+      emitByte(code, node->line, (uint8_t)OP_FALSE);
+      return;
 
     case NODE_IDENTIFIER:
       assert(false); // TODO Implement
     case NODE_NUMBER:
       {
-        uint32_t number = 0;
+        int32_t number = 0;
         char* text = ((AtomNode*)node)->text;
         size_t length = ((AtomNode*)node)->length;
 
-        sscanf(text, "%d", &number);
+        for(size_t i = 0; i < length; i++) {
+          uint8_t digit = text[i] - '0';
+          assert(digit < 10);
+          number = number * 10 + digit;
+        }
 
-        /*
-         * TODO If you trace what this does it's sort of a mess.
-         *
-         * However, I don't want to rewrite it now because this code may go
-         * away;  we might remove the OP_INTEGER instruction in favor of an
-         * OP_CONSTANT instruction which places the integer (or any other
-         * constant) in a constant table on the Code object. There are some
-         * tradeoffs here:
-         *
-         * PROS:
-         * - Less space used in bytecode.
-         * - We can deduplicate integers and use less space in the constant
-         *   table as well.
-         * CONS:
-         * - Add a pointer lookup at runtime when pushing integers to the
-         *   stack.
-         *
-         * Ultimately, let's wait to make a decision on this until we have
-         * performance tests to be our guide.
-         */
-        emitBytes(
-          code,
-          node->line,
-          OP_INTEGER,
-          ((uint8_t*)(&number))[0],
-          ((uint8_t*)(&number))[1],
-          ((uint8_t*)(&number))[2],
-          ((uint8_t*)(&number))[3]
-        );
+        emitByte(code, node->line, (uint8_t)OP_INTEGER);
+        emitInteger(code, node->line, number);
       }
       break;
 
@@ -84,11 +78,11 @@ static void emitNode(Code* code, Node* node) {
         emitNode(code, ((BinaryNode*)node)->arg0); \
         emitNode(code, ((BinaryNode*)node)->arg1); \
         emitByte(code, node->line, op); \
-      } while(true)
-    case NODE_ADD:      BINARY_NODE(OP_ADD);      break;
-    case NODE_SUBTRACT: BINARY_NODE(OP_SUBTRACT); break;
-    case NODE_MULTIPLY: BINARY_NODE(OP_MULTIPLY); break;
-    case NODE_DIVIDE:   BINARY_NODE(OP_DIVIDE);   break;
+      } while(false)
+    case NODE_ADD:      BINARY_NODE(OP_ADD);      return;
+    case NODE_SUBTRACT: BINARY_NODE(OP_SUBTRACT); return;
+    case NODE_MULTIPLY: BINARY_NODE(OP_MULTIPLY); return;
+    case NODE_DIVIDE:   BINARY_NODE(OP_DIVIDE);   return;
     #undef BINARY_NODE
 
     default:
@@ -113,7 +107,7 @@ Code* Compiler_compile(Compiler* self, char* source) {
    * EOF in the file, but getting that requires some plumbing. Using 0
    * until I can get around to implementing this.
    */
-  emitByte(result, OP_RETURN, 0);
+  emitByte(result, 0, OP_RETURN);
 
   Node_free(tree);
 
