@@ -3,6 +3,24 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include "object.h"
+
+void ObjList_init(ObjList* self) {
+  self->length = 0;
+  self->capacity = 0;
+  self->items = NULL;
+}
+
+void ObjList_free(ObjList* self) {
+  for(size_t i = 0; i < self->length; i++) {
+    Obj_free(self->items[i]);
+  }
+
+  self->length = 0;
+  self->capacity = 0;
+  free(self->items);
+}
+
 void LineRunList_init(LineRunList* self) {
   self->length = 0;
   self->capacity = 8;
@@ -65,12 +83,14 @@ void InstructionList_append(InstructionList* self, uint8_t byte) {
 
 Code* Code_new() {
   Code* self = malloc(sizeof(Code));
+  ObjList_init(&(self->interns));
   LineRunList_init(&(self->lineRuns));
   InstructionList_init(&(self->instructions));
   return self;
 };
 
 void Code_del(Code* self) {
+  ObjList_free(&(self->interns)); // Free the interns!
   LineRunList_free(&(self->lineRuns));
   InstructionList_free(&(self->instructions));
   free(self);
@@ -89,4 +109,34 @@ Instruction Code_get(Code* self, size_t index) {
 int32_t Code_getInteger(Code* self, size_t index) {
   assert(index <= self->instructions.length - sizeof(int32_t));
   return *((int32_t*)(self->instructions.items + index));
+}
+
+uint8_t Code_internObject(Code* self, Obj* intern) {
+  /*
+   * TODO Check for duplicates. It could be costly at compile time,
+   * but the payoff at runtime is obvious.
+   */
+
+  size_t result = self->interns.length;
+  assert(result < 256); // TODO Handle this.
+
+  if(self->interns.length == self->interns.capacity) {
+    if(self->interns.capacity == 0) {
+      self->interns.capacity = 8;
+    } else {
+      self->interns.capacity = self->interns.capacity * 2;
+    }
+
+    self->interns.items = realloc(
+        self->interns.items,
+        sizeof(uint8_t) * self->interns.capacity
+    );
+
+    assert(self->interns.items != NULL);
+  }
+
+  self->interns.items[result] = intern;
+  self->interns.length++;
+
+  return (uint8_t) result;
 }

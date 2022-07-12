@@ -189,6 +189,15 @@ void printCodeAsAssembly(Code* code) {
         );
         i += sizeof(int32_t);
         break;
+      case OP_STRING:
+        strcpy(opString, "push_string");
+        i++;
+        sprintf(
+            argString,
+            "%d",
+            code->instructions.items[i]
+        );
+        break;
       MAP(OP_ADD, add);
       MAP(OP_SUBTRACT, sub);
       MAP(OP_MULTIPLY, mul);

@@ -5,28 +5,39 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+typedef struct Obj Obj;
+typedef struct ObjString ObjString;
+
 typedef struct {
   enum {
     TYPE_NIL,
     TYPE_TRUE,
     TYPE_FALSE,
     TYPE_INTEGER,
+    TYPE_OBJ,
   } is_a;
 
   union {
     int32_t integer;
+    Obj* obj;
   } as;
 } Value;
 
-#define isNil(v)      v.is_a == TYPE_NIL
-#define isTrue(v)     v.is_a == TYPE_TRUE
-#define isFalse(v)    v.is_a == TYPE_FALSE
-#define isInteger(v)  v.is_a == TYPE_INTEGER
+#define isNil(v)      (v.is_a == TYPE_NIL)
+#define isTrue(v)     (v.is_a == TYPE_TRUE)
+#define isFalse(v)    (v.is_a == TYPE_FALSE)
+#define isInteger(v)  (v.is_a == TYPE_INTEGER)
+#define isObj(v)      (v.is_a == TYPE_OBJ)
 
 static const Value VALUE_NIL = {
   TYPE_NIL
 };
 
+/*
+ * TODO Profile storing a bool in the union instead. It requires more
+ * comparisons to do equality, but I suspect the simplicity of branching
+ * on type and then reading the union for true/false will outweigh that.
+ */
 inline static bool isBoolean(Value v) {
   return isTrue(v) || isFalse(v);
 }

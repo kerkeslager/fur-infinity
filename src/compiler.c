@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "object.h"
+#include "code.h"
 #include "compiler.h"
 #include "parser.h"
 
@@ -14,6 +16,69 @@ void Compiler_free(Compiler* self) {
 
 inline static void emitByte(Code* code, size_t line, uint8_t byte) {
   Code_append(code, byte, line);
+}
+
+inline static uint8_t emitString(Code* code, AtomNode* node) {
+  char* characters = malloc(node->length - 1);
+  assert(characters != NULL);
+
+  size_t tokenIndex = 0;
+  size_t charactersCount = 0;
+
+  /*
+   * Set tokenIndex to 1 to skip the opening quote in the lexeme.
+   * Check against node->length - 1 to skip the closing quote in the lexeme.
+   * Loop through each character and collapse escape sequences.
+   */
+  for(size_t tokenIndex = 1; tokenIndex < node->length - 1; tokenIndex++) {
+    if(node->text[tokenIndex] == '\\') {
+      tokenIndex++;
+
+      switch(node->text[tokenIndex]) {
+        case '\'':
+        case '\"':
+        case '\\':
+          characters[charactersCount] = node->text[tokenIndex];
+          break;
+
+        case 'n':
+          characters[charactersCount] = '\n';
+          break;
+        case 'r':
+          characters[charactersCount] = '\r';
+          break;
+        case 't':
+          characters[charactersCount] = '\t';
+          break;
+
+        default:
+          // Unsupported escape sequences should have been caught by the
+          // scanner.
+          assert(false);
+      }
+    } else {
+      characters[charactersCount] = node->text[tokenIndex];
+    }
+
+    charactersCount++;
+  }
+
+  /*
+   * Even though we've got the length stored, let's append a null byte
+   * for convenience and potentially safety (though we shouldn't rely on this).
+   */
+  characters[charactersCount] = '\0';
+
+  /*
+   * TODO If there were a lot of escape sequences, the string could be
+   * significantly shorter than the lexeme, so it might be worthwhile
+   * to realloc down. Let's revisit after Unicode support.
+   */
+  ObjString* result = malloc(sizeof(ObjString));
+
+  ObjString_init(result, OBJ_STRING, charactersCount, characters);
+
+  return Code_internObject(code, (Obj*)result);
 }
 
 inline static void emitInteger(Code* code, size_t line, int32_t integer) {
@@ -72,6 +137,13 @@ static void emitNode(Code* code, Node* node) {
         emitInteger(code, node->line, number);
       }
       break;
+
+    case NODE_STRING:
+      {
+        uint8_t index = emitString(code, (AtomNode*)node);
+        emitByte(code, node->line, (uint8_t)OP_STRING);
+        emitByte(code, node->line, index);
+      } break;
 
     #define UNARY_NODE(op) \
       do { \

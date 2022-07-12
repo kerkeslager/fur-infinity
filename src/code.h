@@ -3,11 +3,14 @@
 
 #include <stdlib.h>
 
+#include "value.h"
+
 typedef enum {
   OP_NIL,
   OP_TRUE,
   OP_FALSE,
   OP_INTEGER,
+  OP_STRING,
   OP_AND,
   OP_OR,
   OP_ADD,
@@ -25,6 +28,17 @@ typedef enum {
   OP_PROP,
   OP_RETURN,
 } Instruction;
+
+/*
+ * TODO We have enough of these dynamic arrays that we can start pulling
+ * out some duplications into macros.
+ */
+
+typedef struct {
+  size_t length;
+  size_t capacity;
+  Obj** items;
+} ObjList;
 
 typedef struct {
   size_t line;
@@ -44,13 +58,16 @@ typedef struct {
 } InstructionList;
 
 typedef struct {
+  ObjList interns;
   LineRunList lineRuns;
   InstructionList instructions;
 } Code;
 
 Code* Code_new();
 void Code_del(Code*);
+
 void Code_append(Code* self, uint8_t instruction, size_t line);
+uint8_t Code_internObject(Code* self, Obj* intern);
 
 // TODO Profile inlining these.
 /* TODO We're tracking the index in the calling function, which

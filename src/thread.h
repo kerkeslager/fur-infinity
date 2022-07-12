@@ -22,7 +22,7 @@ void Stack_binary(Stack*, Value (*binary)(Value, Value));
 
 typedef struct {
   Stack stack;
-  Object* heap;
+  Obj* heap;
 } Thread;
 
 void Thread_init(Thread*);
