@@ -83,6 +83,9 @@ typedef enum {
   // This precedence rule should never match
   PREC_NONE,
 
+  // This is the minimum binding power we start with
+  PREC_ANY,
+
   /*
    * Left before right means left < right, because enum values are chosen sequentially
    * Left < right indicates left associative, i.e. 1 + 2 + 3 => (+ (+ 1 2) 3)
@@ -107,17 +110,19 @@ typedef struct {
 } PrecedenceRule;
 
 const static PrecedenceRule PRECEDENCE_TABLE[] = {
-// TokenType             Prefix,    InfixLeft,     InfixRight,      Postfix,    isAtom
-  [TOKEN_NIL] =        { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
-  [TOKEN_TRUE] =       { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
-  [TOKEN_FALSE] =      { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
-  [TOKEN_IDENTIFIER] = { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
-  [TOKEN_NUMBER] =     { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
-  [TOKEN_PLUS] =       { PREC_NONE, PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE,  false },
-  [TOKEN_MINUS] =      { PREC_NEG,  PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE,   false },
-  [TOKEN_NOT] =        { PREC_NEG,  PREC_NONE,     PREC_NONE,       PREC_NONE,   false },
-  [TOKEN_STAR] =       { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE,  false },
-  [TOKEN_SLASH] =      { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE,  false },
+// TokenType              Prefix,     InfixLeft,      InfixRight,     Postfix,    isAtom
+  [TOKEN_NIL] =         { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
+  [TOKEN_TRUE] =        { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
+  [TOKEN_FALSE] =       { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
+  [TOKEN_IDENTIFIER] =  { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
+  [TOKEN_NUMBER] =      { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
+  [TOKEN_PLUS] =        { PREC_NONE,  PREC_ADD_LEFT,  PREC_ADD_RIGHT, PREC_NONE,  false },
+  [TOKEN_MINUS] =       { PREC_NEG,   PREC_ADD_LEFT,  PREC_ADD_RIGHT, PREC_NONE,  false },
+  [TOKEN_NOT] =         { PREC_NEG,   PREC_NONE,      PREC_NONE,      PREC_NONE,  false },
+  [TOKEN_STAR] =        { PREC_NONE,  PREC_MUL_LEFT,  PREC_MUL_RIGHT, PREC_NONE,  false },
+  [TOKEN_SLASH] =       { PREC_NONE,  PREC_MUL_LEFT,  PREC_MUL_RIGHT, PREC_NONE,  false },
+  [TOKEN_OPEN_PAREN] =  { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  false },
+  [TOKEN_CLOSE_PAREN] = { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  false },
 };
 
 Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
@@ -135,6 +140,11 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
     return NULL;
   } else if(PRECEDENCE_TABLE[token.type].isAtom) {
     leftOperand = makeAtomNode(token);
+  } else if(token.type == TOKEN_OPEN_PAREN) {
+    leftOperand = parseInternal(scanner, PREC_ANY);
+    token = Scanner_scan(scanner);
+    // TODO Handle this
+    assert(token.type == TOKEN_CLOSE_PAREN);
   } else if(PRECEDENCE_TABLE[token.type].prefix > PREC_NONE) {
     Node* prefixOperand = parseInternal(
       scanner,
@@ -240,5 +250,5 @@ void Node_free(Node* self) {
 }
 
 Node* parse(Scanner* scanner) {
-  return parseInternal(scanner, PREC_NONE);
+  return parseInternal(scanner, PREC_ANY);
 }

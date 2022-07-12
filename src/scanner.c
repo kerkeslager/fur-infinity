@@ -268,18 +268,21 @@ static Token Scanner_scanInternal(Scanner* self) {
         self->current++;
         return Scanner_scanNumber(self, start);
       }
-    case '+':
-      self->current++;
-      return makeToken(TOKEN_PLUS, self->current - 1, 1, self->line);
-    case '-':
-      self->current++;
-      return makeToken(TOKEN_MINUS, self->current - 1, 1, self->line);
-    case '*':
-      self->current++;
-      return makeToken(TOKEN_STAR, self->current - 1, 1, self->line);
-    case '/':
-      self->current++;
-      return makeToken(TOKEN_SLASH, self->current - 1, 1, self->line);
+
+    #define SINGLE_CHAR_TOKEN(ch, type) \
+    case ch: \
+      { \
+        char* start = self->current; \
+        self->current++; \
+        return makeToken(type, start, 1, self->line); \
+      }
+    SINGLE_CHAR_TOKEN('+', TOKEN_PLUS);
+    SINGLE_CHAR_TOKEN('-', TOKEN_MINUS);
+    SINGLE_CHAR_TOKEN('*', TOKEN_STAR);
+    SINGLE_CHAR_TOKEN('/', TOKEN_SLASH);
+    SINGLE_CHAR_TOKEN('(', TOKEN_OPEN_PAREN);
+    SINGLE_CHAR_TOKEN(')', TOKEN_CLOSE_PAREN);
+    #undef SINGLE_CHAR_TOKEN
 
     case '\0':
       return makeToken(TOKEN_EOF, self->current, 1, self->line);

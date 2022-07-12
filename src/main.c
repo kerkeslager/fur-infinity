@@ -36,6 +36,8 @@ const char* tokenTypeAsString(TokenType type) {
       case TOKEN_MINUS: return "TOKEN_MINUS";
       case TOKEN_STAR: return "TOKEN_STAR";
       case TOKEN_SLASH: return "TOKEN_SLASH";
+      case TOKEN_OPEN_PAREN: return "TOKEN_OPEN_PAREN";
+      case TOKEN_CLOSE_PAREN: return "TOKEN_CLOSE_PAREN";
 
       case TOKEN_ERROR: return "TOKEN_ERROR";
       case TOKEN_EOF: return "TOKEN_EOF";
@@ -290,9 +292,10 @@ static int repl(Options options) {
     if(options.action == RUN) {
       printf("=> ");
       Value_printRepr(result);
+      printf("\n");
+    } else if(options.action == PARSE) {
+      printf("\n");
     }
-
-    printf("\n");
 
     // TODO We don't support heap allocation yet, but when we do, we will
     // need to free the value here if it's heap-allocated.

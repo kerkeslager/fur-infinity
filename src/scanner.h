@@ -15,6 +15,9 @@ typedef enum {
   TOKEN_STAR,
   TOKEN_SLASH,
 
+  TOKEN_OPEN_PAREN,
+  TOKEN_CLOSE_PAREN,
+
   TOKEN_ERROR,
   TOKEN_EOF,
 } TokenType;
