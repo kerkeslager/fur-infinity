@@ -91,8 +91,20 @@ typedef enum {
    * Left < right indicates left associative, i.e. 1 + 2 + 3 => (+ (+ 1 2) 3)
    * This is because when we check the precedence it will give a lower binding power.
    */
-  PREC_ASSIGN_LEFT,
+
+  // Right associative
   PREC_ASSIGN_RIGHT,
+  PREC_ASSIGN_LEFT,
+
+  // Left associative
+  PREC_OR_LEFT,
+  PREC_OR_RIGHT,
+
+  // Left associative
+  PREC_AND_LEFT,
+  PREC_AND_RIGHT,
+
+  PREC_NOT,
 
   // Left associative
   PREC_CMP_LEFT,
@@ -107,6 +119,10 @@ typedef enum {
   PREC_MUL_RIGHT,
 
   PREC_NEG,
+
+  // Also left associative
+  PREC_DOT_LEFT,
+  PREC_DOT_RIGHT,
 } Precedence;
 
 typedef struct {
@@ -125,6 +141,8 @@ const static PrecedenceRule PRECEDENCE_TABLE[] = {
   [TOKEN_IDENTIFIER] =  { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
   [TOKEN_NUMBER] =      { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
   [TOKEN_ASSIGN] =      { PREC_NONE,  PREC_ASSIGN_LEFT, PREC_ASSIGN_RIGHT,  PREC_NONE,  false },
+  [TOKEN_OR] =          { PREC_NONE,  PREC_OR_LEFT,     PREC_OR_RIGHT,      PREC_NONE,  false },
+  [TOKEN_AND] =         { PREC_NONE,  PREC_AND_LEFT,    PREC_AND_RIGHT,     PREC_NONE,  false },
   [TOKEN_EQ] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
   [TOKEN_NEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
   [TOKEN_LEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
@@ -133,9 +151,10 @@ const static PrecedenceRule PRECEDENCE_TABLE[] = {
   [TOKEN_GT] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
   [TOKEN_PLUS] =        { PREC_NONE,  PREC_ADD_LEFT,    PREC_ADD_RIGHT,     PREC_NONE,  false },
   [TOKEN_MINUS] =       { PREC_NEG,   PREC_ADD_LEFT,    PREC_ADD_RIGHT,     PREC_NONE,  false },
-  [TOKEN_NOT] =         { PREC_NEG,   PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
+  [TOKEN_NOT] =         { PREC_NOT,   PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
   [TOKEN_STAR] =        { PREC_NONE,  PREC_MUL_LEFT,    PREC_MUL_RIGHT,     PREC_NONE,  false },
   [TOKEN_SLASH] =       { PREC_NONE,  PREC_MUL_LEFT,    PREC_MUL_RIGHT,     PREC_NONE,  false },
+  [TOKEN_DOT] =         { PREC_NONE,  PREC_DOT_LEFT,    PREC_DOT_RIGHT,     PREC_NONE,  false },
   [TOKEN_OPEN_PAREN] =  { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
   [TOKEN_CLOSE_PAREN] = { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
 };
@@ -211,6 +230,9 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
       MAP_INFIX(TOKEN_GT,     NODE_GREATER_THAN);
       MAP_INFIX(TOKEN_LT,     NODE_LESS_THAN);
       MAP_INFIX(TOKEN_ASSIGN, NODE_ASSIGN);
+      MAP_INFIX(TOKEN_AND,    NODE_AND);
+      MAP_INFIX(TOKEN_OR,     NODE_OR);
+      MAP_INFIX(TOKEN_DOT,    NODE_PROPERTY);
       #undef MAP_INFIX
       default:
         printf("Unkown infix operator: \"%.*s\"", (int)operator.length, operator.text);
@@ -233,6 +255,7 @@ void Node_free(Node* self) {
     // TODO Clean up arg2 for ternary node types here
 
     // Binary nodes
+    case NODE_PROPERTY:
     case NODE_ADD:
     case NODE_SUBTRACT:
     case NODE_MULTIPLY:
@@ -243,6 +266,8 @@ void Node_free(Node* self) {
     case NODE_LESS_THAN_EQUALS:
     case NODE_GREATER_THAN:
     case NODE_LESS_THAN:
+    case NODE_AND:
+    case NODE_OR:
     case NODE_ASSIGN:
       Node_free(((BinaryNode*)self)->arg1);
       // Don't break, cascade to further cleanup

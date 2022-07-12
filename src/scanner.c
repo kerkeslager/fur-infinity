@@ -167,18 +167,18 @@ static Token Scanner_scanInternal(Scanner* self) {
   Scanner_scanWhitespace(self);
 
   switch(*(self->current)) {
+    case 'a':
+      {
+        char* start = self->current;
+        self->current++;
+        return Scanner_scanKeyword(self, start, "nd", TOKEN_AND);
+      }
+
     case 'f':
       {
         char* start = self->current;
         self->current++;
         return Scanner_scanKeyword(self, start, "alse", TOKEN_FALSE);
-      }
-
-    case 't':
-      {
-        char* start = self->current;
-        self->current++;
-        return Scanner_scanKeyword(self, start, "rue", TOKEN_TRUE);
       }
 
     case 'n':
@@ -198,7 +198,20 @@ static Token Scanner_scanInternal(Scanner* self) {
         }
       }
 
-    case 'a':
+    case 'o':
+      {
+        char* start = self->current;
+        self->current++;
+        return Scanner_scanKeyword(self, start, "r", TOKEN_OR);
+      }
+
+    case 't':
+      {
+        char* start = self->current;
+        self->current++;
+        return Scanner_scanKeyword(self, start, "rue", TOKEN_TRUE);
+      }
+
     case 'b':
     case 'c':
     case 'd':
@@ -210,7 +223,6 @@ static Token Scanner_scanInternal(Scanner* self) {
     case 'k':
     case 'l':
     case 'm':
-    case 'o':
     case 'p':
     case 'q':
     case 'r':
@@ -282,6 +294,7 @@ static Token Scanner_scanInternal(Scanner* self) {
     ONE_CHAR_TOKEN('/', TOKEN_SLASH);
     ONE_CHAR_TOKEN('(', TOKEN_OPEN_PAREN);
     ONE_CHAR_TOKEN(')', TOKEN_CLOSE_PAREN);
+    ONE_CHAR_TOKEN('.', TOKEN_DOT);
     #undef ONE_CHAR_TOKEN
 
     case '<':

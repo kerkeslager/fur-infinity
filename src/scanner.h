@@ -10,6 +10,9 @@ typedef enum {
   TOKEN_NOT,
   TOKEN_IDENTIFIER,
   TOKEN_NUMBER,
+
+  TOKEN_DOT,
+
   TOKEN_PLUS,
   TOKEN_MINUS,
   TOKEN_STAR,
@@ -24,6 +27,9 @@ typedef enum {
   TOKEN_LT,
   TOKEN_GEQ,
   TOKEN_LEQ,
+
+  TOKEN_AND,
+  TOKEN_OR,
 
   TOKEN_ASSIGN,
 

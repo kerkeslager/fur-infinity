@@ -33,6 +33,7 @@ const char* tokenTypeAsString(TokenType type) {
       MAP(TOKEN_NOT);
       MAP(TOKEN_IDENTIFIER);
       MAP(TOKEN_NUMBER);
+      MAP(TOKEN_DOT);
       MAP(TOKEN_PLUS);
       MAP(TOKEN_MINUS);
       MAP(TOKEN_STAR);
@@ -45,10 +46,13 @@ const char* tokenTypeAsString(TokenType type) {
       MAP(TOKEN_LEQ);
       MAP(TOKEN_GT);
       MAP(TOKEN_LT);
+      MAP(TOKEN_AND);
+      MAP(TOKEN_OR);
       MAP(TOKEN_ASSIGN);
 
       MAP(TOKEN_ERROR);
       MAP(TOKEN_EOF);
+      #undef MAP
 
       default: return NULL;
     }
@@ -137,6 +141,9 @@ static void printNode(Node* node) {
     MAP_INFIX(NODE_GREATER_THAN, >);
     MAP_INFIX(NODE_LESS_THAN, <);
     MAP_INFIX(NODE_ASSIGN, =);
+    MAP_INFIX(NODE_AND, and);
+    MAP_INFIX(NODE_OR, or);
+    MAP_INFIX(NODE_PROPERTY, .);
     #undef MAP_INFIX
 
     default:
@@ -161,15 +168,13 @@ void printCodeAsAssembly(Code* code) {
     size_t line = code->lineRuns.items[lineRunIndex].line;
 
     switch(code->instructions.items[i]) {
-      case OP_NIL:
-        strcpy(opString, "push_nil");
-        break;
-      case OP_TRUE:
-        strcpy(opString, "push_true");
-        break;
-      case OP_FALSE:
-        strcpy(opString, "push_false");
-        break;
+      #define MAP(op, name) \
+      case op: \
+        strcpy(opString, #name); \
+        break
+      MAP(OP_NIL, push_nil);
+      MAP(OP_TRUE, push_true);
+      MAP(OP_FALSE, push_false);
       case OP_INTEGER:
         strcpy(opString, "push_int");
         sprintf(
@@ -179,29 +184,25 @@ void printCodeAsAssembly(Code* code) {
         );
         i += sizeof(int32_t);
         break;
-      case OP_ADD:
-        strcpy(opString, "add");
-        break;
-      case OP_SUBTRACT:
-        strcpy(opString, "sub");
-        break;
-      case OP_MULTIPLY:
-        strcpy(opString, "mul");
-        break;
-      case OP_DIVIDE:
+      MAP(OP_ADD, add);
+      MAP(OP_SUBTRACT, sub);
+      MAP(OP_MULTIPLY, mul);
         // This is "integer divide", i.e. 3 / 2 = 1
         // Distinguished from "divide", i.e. 3 / 2 = 1.5
-        strcpy(opString, "int_div");
-        break;
-      case OP_NEGATE:
-        strcpy(opString, "neg");
-        break;
-      case OP_NOT:
-        strcpy(opString, "not");
-        break;
-      case OP_RETURN:
-        strcpy(opString, "ret");
-        break;
+      MAP(OP_DIVIDE, int_div);
+      MAP(OP_NEGATE, neg);
+      MAP(OP_NOT, not);
+      MAP(OP_RETURN, ret);
+      MAP(OP_EQ, eq);
+      MAP(OP_LT, lt);
+      MAP(OP_GT, gt);
+      MAP(OP_NEQ, neq);
+      MAP(OP_GEQ, geq);
+      MAP(OP_LEQ, leq);
+      MAP(OP_AND, and);
+      MAP(OP_OR, or);
+      MAP(OP_PROP, prop);
+      #undef MAP
       default:
         assert(false);
     }

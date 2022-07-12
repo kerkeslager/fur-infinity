@@ -82,16 +82,29 @@ static void emitNode(Code* code, Node* node) {
     case NODE_NOT:    UNARY_NODE(OP_NOT);     return;
     #undef UNARY_NODE
 
-    #define BINARY_NODE(op) \
+    #define BINARY_NODE(type,op) \
+    case type: \
       do { \
         emitNode(code, ((BinaryNode*)node)->arg0); \
         emitNode(code, ((BinaryNode*)node)->arg1); \
         emitByte(code, node->line, op); \
+        return; \
       } while(false)
-    case NODE_ADD:      BINARY_NODE(OP_ADD);      return;
-    case NODE_SUBTRACT: BINARY_NODE(OP_SUBTRACT); return;
-    case NODE_MULTIPLY: BINARY_NODE(OP_MULTIPLY); return;
-    case NODE_DIVIDE:   BINARY_NODE(OP_DIVIDE);   return;
+    BINARY_NODE(NODE_PROPERTY,            OP_PROP);
+    BINARY_NODE(NODE_ADD,                 OP_ADD);
+    BINARY_NODE(NODE_SUBTRACT,            OP_SUBTRACT);
+    BINARY_NODE(NODE_MULTIPLY,            OP_MULTIPLY);
+    BINARY_NODE(NODE_DIVIDE,              OP_DIVIDE);
+    BINARY_NODE(NODE_EQUALS,              OP_EQ);
+    BINARY_NODE(NODE_GREATER_THAN,        OP_GT);
+    BINARY_NODE(NODE_LESS_THAN,           OP_LT);
+    BINARY_NODE(NODE_NOT_EQUALS,          OP_NEQ);
+    BINARY_NODE(NODE_GREATER_THAN_EQUALS, OP_GEQ);
+    BINARY_NODE(NODE_LESS_THAN_EQUALS,    OP_LEQ);
+
+    // TODO Implement short-circuiting
+    BINARY_NODE(NODE_AND,                 OP_AND);
+    BINARY_NODE(NODE_OR,                  OP_OR);
     #undef BINARY_NODE
 
     default:

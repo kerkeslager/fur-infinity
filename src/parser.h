@@ -18,6 +18,7 @@ typedef enum {
   NODE_NOT,
 
   // Binary nodes
+  NODE_PROPERTY,
   NODE_ADD,
   NODE_SUBTRACT,
   NODE_MULTIPLY,
@@ -28,7 +29,10 @@ typedef enum {
   NODE_LESS_THAN_EQUALS,
   NODE_GREATER_THAN,
   NODE_LESS_THAN,
+  NODE_AND,
+  NODE_OR,
   NODE_ASSIGN,
+
 } NodeType;
 
 typedef struct {

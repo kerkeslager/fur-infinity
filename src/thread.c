@@ -106,20 +106,72 @@ inline static Value negate(Value arg) {
   return arg;
 }
 
-#define OPERATOR_BINARY_FUNCTION(name, op) \
+#define INT_BINARY_FUNCTION(name, op) \
   inline static Value name(Value arg0, Value arg1) { \
     assert(isInteger(arg0)); \
     assert(isInteger(arg1)); \
     arg0.as.integer = arg0.as.integer op arg1.as.integer; \
     return arg0; \
   }
-
-OPERATOR_BINARY_FUNCTION(add, +)
-OPERATOR_BINARY_FUNCTION(subtract, -)
-OPERATOR_BINARY_FUNCTION(multiply, *)
-OPERATOR_BINARY_FUNCTION(divide, /)
-
+INT_BINARY_FUNCTION(add, +)
+INT_BINARY_FUNCTION(subtract, -)
+INT_BINARY_FUNCTION(multiply, *)
+INT_BINARY_FUNCTION(divide, /)
 #undef OPERATOR_BINARY_FUNCTION
+
+#define ORDER_BINARY_FUNCTION(name, op) \
+  inline static Value name(Value arg0, Value arg1) { \
+    assert(isInteger(arg0)); \
+    assert(isInteger(arg1)); \
+    arg0.is_a = (arg0.as.integer op arg1.as.integer) ? TYPE_TRUE : TYPE_FALSE; \
+    return arg0; \
+  }
+ORDER_BINARY_FUNCTION(lessThan, <)
+ORDER_BINARY_FUNCTION(greaterThan, >)
+ORDER_BINARY_FUNCTION(lessThanEquals, <=)
+ORDER_BINARY_FUNCTION(greaterThanEquals, >=)
+#undef ORDER_BINARY_FUNCTION
+
+// TODO Implement short-circuiting.
+#define LOGICAL_BINARY_FUNCTION(name, op) \
+  inline static Value name(Value arg0, Value arg1) { \
+    assert(isBoolean(arg0)); \
+    assert(isBoolean(arg1)); \
+    return Value_fromBool(Value_toBool(arg0) op Value_toBool(arg1)); \
+  }
+LOGICAL_BINARY_FUNCTION(logicalAnd, &&);
+LOGICAL_BINARY_FUNCTION(logicalOr, ||);
+#undef LOGICAL_BINARY_FUNCTION
+
+inline static Value equals(Value arg0, Value arg1) {
+  switch(arg0.is_a) {
+    case TYPE_NIL:
+    case TYPE_TRUE:
+    case TYPE_FALSE:
+      return Value_fromBool(arg0.is_a == arg1.is_a);
+
+    case TYPE_INTEGER:
+      return Value_fromBool(
+        arg0.is_a == arg1.is_a && arg0.as.integer == arg1.as.integer
+      );
+
+    default:
+      assert(false);
+  }
+}
+inline static Value notEquals(Value arg0, Value arg1) {
+  if(arg0.is_a != arg1.is_a) {
+    return Value_fromBool(true);
+  }
+
+  switch(arg0.is_a) {
+    case TYPE_INTEGER:
+      return Value_fromBool(arg0.as.integer != arg1.as.integer);
+
+    default:
+      return Value_fromBool(false);
+  }
+}
 
 Value Thread_run(Thread* self, Code* code) {
   size_t index = 0;
@@ -134,12 +186,12 @@ Value Thread_run(Thread* self, Code* code) {
         break;
 
       case OP_TRUE:
-        Stack_push(&(self->stack), VALUE_TRUE);
+        Stack_push(&(self->stack), Value_fromBool(true));
         index++;
         break;
 
       case OP_FALSE:
-        Stack_push(&(self->stack), VALUE_FALSE);
+        Stack_push(&(self->stack), Value_fromBool(false));
         index++;
         break;
 
@@ -160,11 +212,24 @@ Value Thread_run(Thread* self, Code* code) {
       #undef UNARY_OP
 
 
-      #define BINARY_OP(function) Stack_binary(&(self->stack), function)
-      case OP_ADD:      BINARY_OP(add);       index++;  break;
-      case OP_SUBTRACT: BINARY_OP(subtract);  index++;  break;
-      case OP_MULTIPLY: BINARY_OP(multiply);  index++;  break;
-      case OP_DIVIDE:   BINARY_OP(divide);    index++;  break;
+      #define BINARY_OP(op, function)\
+      case op: Stack_binary(&(self->stack), function); \
+        index++; \
+        break
+      BINARY_OP(OP_ADD, add);
+      BINARY_OP(OP_SUBTRACT, subtract);
+      BINARY_OP(OP_MULTIPLY, multiply);
+      BINARY_OP(OP_DIVIDE, divide);
+      BINARY_OP(OP_EQ, equals);
+      BINARY_OP(OP_LT, lessThan);
+      BINARY_OP(OP_GT, greaterThan);
+      BINARY_OP(OP_NEQ, notEquals);
+      BINARY_OP(OP_GEQ, greaterThanEquals);
+      BINARY_OP(OP_LEQ, lessThanEquals);
+
+      // TODO Implement short-circuiting
+      BINARY_OP(OP_AND, logicalAnd);
+      BINARY_OP(OP_OR, logicalOr);
       #undef BINARY_OP
 
       case OP_RETURN:
