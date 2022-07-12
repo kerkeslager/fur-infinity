@@ -12,6 +12,7 @@ typedef enum {
   NODE_FALSE,
   NODE_IDENTIFIER,
   NODE_NUMBER,
+  NODE_STRING,
 
   // Unary Nodes
   NODE_NEGATE,

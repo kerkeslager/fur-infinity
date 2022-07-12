@@ -120,6 +120,9 @@ static void printNode(Node* node) {
     case NODE_NUMBER:
       printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
       break;
+    case NODE_STRING:
+      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
+      break;
 
     case NODE_NEGATE:
       printUnaryNode("-\0", (UnaryNode*)node);

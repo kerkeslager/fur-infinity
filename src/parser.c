@@ -42,6 +42,10 @@ static Node* makeAtomNode(Token token) {
     case TOKEN_NUMBER:
       type = NODE_NUMBER;
       break;
+    case TOKEN_SQSTR:
+    case TOKEN_DQSTR:
+      type = NODE_STRING;
+      break;
 
     default:
       assert(false); // TODO Better handling.
@@ -140,6 +144,8 @@ const static PrecedenceRule PRECEDENCE_TABLE[] = {
   [TOKEN_FALSE] =       { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
   [TOKEN_IDENTIFIER] =  { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
   [TOKEN_NUMBER] =      { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
+  [TOKEN_SQSTR] =       { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
+  [TOKEN_DQSTR] =       { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
   [TOKEN_ASSIGN] =      { PREC_NONE,  PREC_ASSIGN_LEFT, PREC_ASSIGN_RIGHT,  PREC_NONE,  false },
   [TOKEN_OR] =          { PREC_NONE,  PREC_OR_LEFT,     PREC_OR_RIGHT,      PREC_NONE,  false },
   [TOKEN_AND] =         { PREC_NONE,  PREC_AND_LEFT,    PREC_AND_RIGHT,     PREC_NONE,  false },
@@ -284,6 +290,7 @@ void Node_free(Node* self) {
     case NODE_FALSE:
     case NODE_IDENTIFIER:
     case NODE_NUMBER:
+    case NODE_STRING:
       // Note that we don't clean up the text associated with atom nodes
       // This is because it contains pointers to source, which we will clean up once
       // the parse is done and code generated.
