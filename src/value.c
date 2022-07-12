@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "value.h"
+#include "object.h"
 
 void Value_printRepr(Value value) {
   switch(value.is_a) {
@@ -13,6 +14,9 @@ void Value_printRepr(Value value) {
     case TYPE_INTEGER:
       printf("%d", value.as.integer);
       return;
+
+    case TYPE_OBJ:
+      return Obj_printRepr(value.as.obj);
 
     default:
       assert(false);

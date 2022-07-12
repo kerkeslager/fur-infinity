@@ -60,6 +60,13 @@ inline static Value Value_fromInt32(int32_t i) {
   return result;
 }
 
+inline static Value Value_fromObj(Obj* o) {
+  Value result;
+  result.is_a = TYPE_OBJ;
+  result.as.obj = o;
+  return result;
+}
+
 void Value_printRepr(Value);
 int Value_asSuccess(Value);
 

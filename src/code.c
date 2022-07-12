@@ -140,3 +140,7 @@ uint8_t Code_internObject(Code* self, Obj* intern) {
 
   return (uint8_t) result;
 }
+
+Obj* Code_getInterned(Code* self, uint8_t index) {
+  return self->interns.items[index];
+}

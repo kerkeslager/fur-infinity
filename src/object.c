@@ -1,4 +1,5 @@
 #include "object.h"
+#include <stdio.h>
 
 inline static void Obj_init(Obj* self, ObjType type) {
   self->next = NULL;
@@ -26,4 +27,45 @@ void Obj_free(Obj* self) {
   }
 
   free(self);
+}
+
+void ObjString_printRepr(ObjString* self) {
+  printf("\"");
+  for(size_t i = 0; i < self->length; i++) {
+    // This is the *representation*, not the actual string
+    // so we need to unescape characters
+    switch(self->characters[i]) {
+      case '\\':
+        printf("\\\\");
+        break;
+      case '\'':
+        printf("\\\'");
+        break;
+      case '\"':
+        printf("\\\'");
+        break;
+      case '\n':
+        printf("\\\'");
+        break;
+      case '\r':
+        printf("\\\'");
+        break;
+      case '\t':
+        printf("\\\'");
+        break;
+      default:
+        printf("%c", self->characters[i]);
+    }
+  }
+  printf("\"");
+}
+
+void Obj_printRepr(Obj* self) {
+  switch(self->type) {
+    case OBJ_STRING:
+      return ObjString_printRepr((ObjString*) self);
+
+    default:
+      assert(false);
+  }
 }

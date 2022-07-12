@@ -198,12 +198,35 @@ Value Thread_run(Thread* self, Code* code) {
       case OP_INTEGER:
         {
           index++;
-          Value value;
-          value.is_a = TYPE_INTEGER;
-          value.as.integer = Code_getInteger(code, index);
+          Stack_push(
+              &(self->stack),
+              Value_fromInt32(Code_getInteger(code, index))
+          );
 
-          Stack_push(&(self->stack), value);
           index += sizeof(int32_t);
+        } break;
+
+      case OP_STRING:
+        {
+          index++;
+          Stack_push(
+            &(self->stack),
+            Value_fromObj(
+              Code_getInterned(
+                code,
+                Code_get(code, index)
+              )
+            )
+          );
+          /*
+           * Note that we DO NOT put this into the heap.
+           * Once compiled, interned strings exist as long as the
+           * program is running. They may be accessed by multiple
+           * threads which run the code, and should be treated as immutable.
+           * As such we don't want them garbage collected: they will be
+           * freed by the runtime when it frees the code.
+           */
+          index++;
         } break;
 
       #define UNARY_OP(function) Stack_unary(&(self->stack), function)
