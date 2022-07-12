@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "thread.h"
 #include "value.h"
@@ -17,6 +18,15 @@ void Stack_free(Stack* self) {
    */
 }
 
+void printStack(Stack* stack) {
+  printf("Count: %zu [", stack->top - stack->items);
+  for(Value* v = stack->items; v < stack->top; v++) {
+    printf(" ");
+    Value_printRepr(*v);
+  }
+  printf(" ]\n");
+}
+
 void Stack_push(Stack* self, Value value) {
   // TODO Handle this.
   assert((self->top - self->items) < MAX_STACK_DEPTH);
@@ -28,8 +38,8 @@ void Stack_push(Stack* self, Value value) {
 Value Stack_pop(Stack* self) {
   assert(self->top > self->items);
 
-  Value result = *(self->top);
   self->top--;
+  Value result = *(self->top);
   return result;
 }
 
@@ -39,7 +49,7 @@ void Stack_binary(Stack* self, Value (*binary)(Value, Value)) {
    * Stack_push(&stack, binary(Stack_pop(&stack), Stack_pop(&stack)))
    *
    * If we trace that, we see that it decrements the top twice, then
-   * increments it.
+   * increments it. This code is frequently called so we need efficiency here.
    *
    * Stack_binary(&stack, binary) has the same effect, with only one
    * decrement, without leaking the implementation of the stack out.
@@ -50,9 +60,9 @@ void Stack_binary(Stack* self, Value (*binary)(Value, Value)) {
    */
   assert(self->top - 1 > self->items);
 
-  Value arg1 = *(self->top);
   self->top--;
-  *(self->top) = binary(*(self->top), arg1);
+  Value result = binary(*(self->top - 1), *(self->top));
+  *(self->top - 1) = binary(*(self->top - 1), *(self->top));
 }
 
 void Thread_init(Thread* self) {
@@ -67,9 +77,7 @@ void Thread_free(Thread* self) {
 
 #define OPERATOR_BINARY_FUNCTION(name, op) \
   inline static Value name(Value arg0, Value arg1) { \
-    Value result; \
-    result.as.integer = arg0.as.integer op arg1.as.integer; \
-    return result; \
+    return Value_fromInt32(arg0.as.integer op arg1.as.integer); \
   }
 
 OPERATOR_BINARY_FUNCTION(add, +)
@@ -87,15 +95,27 @@ Value Thread_run(Thread* self, Code* code) {
 
     switch(Code_get(code, index)) {
       case OP_NIL:
+        Stack_push(&(self->stack), VALUE_NIL);
+        index++;
+        break;
+
       case OP_TRUE:
+        Stack_push(&(self->stack), VALUE_TRUE);
+        index++;
+        break;
+
       case OP_FALSE:
-        assert(false); // TODO Implement
+        Stack_push(&(self->stack), VALUE_FALSE);
+        index++;
+        break;
 
       case OP_INTEGER:
         {
           index++;
           Value value;
+          value.is_a = TYPE_INTEGER;
           value.as.integer = Code_getInteger(code, index);
+
           Stack_push(&(self->stack), value);
           index += sizeof(int32_t);
         } break;

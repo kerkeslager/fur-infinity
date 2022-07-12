@@ -245,6 +245,7 @@ static int repl(Options options) {
           Code* code = Compiler_compile(&compiler, line);
           Value result = Runtime_run(&runtime, code);
           Value_printRepr(result);
+          printf("\n");
         } break;
       default:
         assert(false);
