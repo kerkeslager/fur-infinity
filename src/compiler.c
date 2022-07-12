@@ -79,6 +79,7 @@ static void emitNode(Code* code, Node* node) {
         emitByte(code, node->line, op); \
       } while(false)
     case NODE_NEGATE: UNARY_NODE(OP_NEGATE);  return;
+    case NODE_NOT:    UNARY_NODE(OP_NOT);     return;
     #undef UNARY_NODE
 
     #define BINARY_NODE(op) \

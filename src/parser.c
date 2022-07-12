@@ -58,9 +58,8 @@ static Node* makeUnaryNode(Token operator, Node* arg) {
   NodeType type;
 
   switch(operator.type) {
-    case TOKEN_MINUS:
-      type = NODE_NEGATE;
-      break;
+    case TOKEN_MINUS: type = NODE_NEGATE; break;
+    case TOKEN_NOT:   type = NODE_NOT;    break;
 
     default:
       assert(false);
@@ -116,6 +115,7 @@ const static PrecedenceRule PRECEDENCE_TABLE[] = {
   [TOKEN_NUMBER] =     { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
   [TOKEN_PLUS] =       { PREC_NONE, PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE,  false },
   [TOKEN_MINUS] =      { PREC_NEG,  PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE,   false },
+  [TOKEN_NOT] =        { PREC_NEG,  PREC_NONE,     PREC_NONE,       PREC_NONE,   false },
   [TOKEN_STAR] =       { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE,  false },
   [TOKEN_SLASH] =      { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE,  false },
 };
@@ -214,6 +214,7 @@ void Node_free(Node* self) {
       // Don't break, cascade to further cleanup
 
     case NODE_NEGATE:
+    case NODE_NOT:
     // Unary nodes
       Node_free(((UnaryNode*)self)->arg);
       // Don't break, cascade to further cleanup

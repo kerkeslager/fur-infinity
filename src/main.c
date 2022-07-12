@@ -29,6 +29,7 @@ const char* tokenTypeAsString(TokenType type) {
       case TOKEN_NIL: return "TOKEN_NIL";
       case TOKEN_TRUE: return "TOKEN_TRUE";
       case TOKEN_FALSE: return "TOKEN_FALSE";
+      case TOKEN_NOT: return "TOKEN_NOT";
       case TOKEN_IDENTIFIER: return "TOKEN_IDENTIFIER";
       case TOKEN_NUMBER: return "TOKEN_NUMBER";
       case TOKEN_PLUS: return "TOKEN_PLUS";
@@ -107,6 +108,9 @@ static void printNode(Node* node) {
     case NODE_NEGATE:
       printUnaryNode("-\0", (UnaryNode*)node);
       break;
+    case NODE_NOT:
+      printUnaryNode("not", (UnaryNode*)node);
+      break;
 
     case NODE_ADD:
       printBinaryNode("+\0", (BinaryNode*)node);
@@ -175,6 +179,12 @@ void printCodeAsAssembly(Code* code) {
         // Distinguished from "divide", i.e. 3 / 2 = 1.5
         strcpy(opString, "int_div");
         break;
+      case OP_NEGATE:
+        strcpy(opString, "neg");
+        break;
+      case OP_NOT:
+        strcpy(opString, "not");
+        break;
       case OP_RETURN:
         strcpy(opString, "ret");
         break;
@@ -199,7 +209,6 @@ Value runString(
         Scanner scanner;
         Scanner_init(&scanner, startLine, source);
         printScan(&scanner);
-        free(source);
         return Value_fromInt32(0);
       }
 

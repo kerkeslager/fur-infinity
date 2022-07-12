@@ -1,6 +1,7 @@
 #ifndef FUR_VALUE_H
 #define FUR_VALUE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef struct {
@@ -20,6 +21,10 @@ typedef struct {
 #define isTrue(v)     v.is_a == TYPE_TRUE
 #define isFalse(v)    v.is_a == TYPE_FALSE
 #define isInteger(v)  v.is_a == TYPE_INTEGER
+
+inline static bool isBoolean(Value v) {
+  return isTrue(v) || isFalse(v);
+}
 
 static const Value VALUE_NIL = {
   TYPE_NIL,

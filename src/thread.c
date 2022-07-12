@@ -87,6 +87,19 @@ void Thread_free(Thread* self) {
   assert(self->heap == NULL);
 }
 
+inline static Value logicalNot(Value arg) {
+  switch(arg.is_a) {
+    case TYPE_TRUE:
+      arg.is_a = TYPE_FALSE;
+      return arg;
+    case TYPE_FALSE:
+      arg.is_a = TYPE_TRUE;
+      return arg;
+    default:
+      assert(false);
+  }
+}
+
 inline static Value negate(Value arg) {
   assert(isInteger(arg));
   arg.as.integer = -arg.as.integer;
@@ -142,7 +155,8 @@ Value Thread_run(Thread* self, Code* code) {
         } break;
 
       #define UNARY_OP(function) Stack_unary(&(self->stack), function)
-      case OP_NEGATE: UNARY_OP(negate); index++;  break;
+      case OP_NEGATE: UNARY_OP(negate);       index++;  break;
+      case OP_NOT:    UNARY_OP(logicalNot);   index++;  break;
       #undef UNARY_OP
 
 

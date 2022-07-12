@@ -15,6 +15,7 @@ typedef enum {
 
   // Unary Nodes
   NODE_NEGATE,
+  NODE_NOT,
 
   // Binary nodes
   NODE_ADD,

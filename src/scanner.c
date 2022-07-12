@@ -185,7 +185,17 @@ static Token Scanner_scanInternal(Scanner* self) {
       {
         char* start = self->current;
         self->current++;
-        return Scanner_scanKeyword(self, start, "il", TOKEN_NIL);
+
+        switch(*(self->current)) {
+          case 'i':
+            self->current++;
+            return Scanner_scanKeyword(self, start, "l", TOKEN_NIL);
+          case 'o':
+            self->current++;
+            return Scanner_scanKeyword(self, start, "t", TOKEN_NOT);
+          default:
+            return Scanner_scanIdentifier(self, start);
+        }
       }
 
     case 'a':
