@@ -91,10 +91,18 @@ typedef enum {
    * Left < right indicates left associative, i.e. 1 + 2 + 3 => (+ (+ 1 2) 3)
    * This is because when we check the precedence it will give a lower binding power.
    */
+  PREC_ASSIGN_LEFT,
+  PREC_ASSIGN_RIGHT,
+
+  // Left associative
+  PREC_CMP_LEFT,
+  PREC_CMP_RIGHT,
+
+  // Left associative
   PREC_ADD_LEFT,
   PREC_ADD_RIGHT,
 
-  // Left associative
+  // Also left associative
   PREC_MUL_LEFT,
   PREC_MUL_RIGHT,
 
@@ -110,19 +118,26 @@ typedef struct {
 } PrecedenceRule;
 
 const static PrecedenceRule PRECEDENCE_TABLE[] = {
-// TokenType              Prefix,     InfixLeft,      InfixRight,     Postfix,    isAtom
-  [TOKEN_NIL] =         { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
-  [TOKEN_TRUE] =        { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
-  [TOKEN_FALSE] =       { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
-  [TOKEN_IDENTIFIER] =  { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
-  [TOKEN_NUMBER] =      { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  true },
-  [TOKEN_PLUS] =        { PREC_NONE,  PREC_ADD_LEFT,  PREC_ADD_RIGHT, PREC_NONE,  false },
-  [TOKEN_MINUS] =       { PREC_NEG,   PREC_ADD_LEFT,  PREC_ADD_RIGHT, PREC_NONE,  false },
-  [TOKEN_NOT] =         { PREC_NEG,   PREC_NONE,      PREC_NONE,      PREC_NONE,  false },
-  [TOKEN_STAR] =        { PREC_NONE,  PREC_MUL_LEFT,  PREC_MUL_RIGHT, PREC_NONE,  false },
-  [TOKEN_SLASH] =       { PREC_NONE,  PREC_MUL_LEFT,  PREC_MUL_RIGHT, PREC_NONE,  false },
-  [TOKEN_OPEN_PAREN] =  { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  false },
-  [TOKEN_CLOSE_PAREN] = { PREC_NONE,  PREC_NONE,      PREC_NONE,      PREC_NONE,  false },
+// TokenType              Prefix,     InfixLeft,        InfixRight,         Postfix,    isAtom
+  [TOKEN_NIL] =         { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
+  [TOKEN_TRUE] =        { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
+  [TOKEN_FALSE] =       { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
+  [TOKEN_IDENTIFIER] =  { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
+  [TOKEN_NUMBER] =      { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
+  [TOKEN_ASSIGN] =      { PREC_NONE,  PREC_ASSIGN_LEFT, PREC_ASSIGN_RIGHT,  PREC_NONE,  false },
+  [TOKEN_EQ] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
+  [TOKEN_NEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
+  [TOKEN_LEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
+  [TOKEN_GEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
+  [TOKEN_LT] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
+  [TOKEN_GT] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
+  [TOKEN_PLUS] =        { PREC_NONE,  PREC_ADD_LEFT,    PREC_ADD_RIGHT,     PREC_NONE,  false },
+  [TOKEN_MINUS] =       { PREC_NEG,   PREC_ADD_LEFT,    PREC_ADD_RIGHT,     PREC_NONE,  false },
+  [TOKEN_NOT] =         { PREC_NEG,   PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
+  [TOKEN_STAR] =        { PREC_NONE,  PREC_MUL_LEFT,    PREC_MUL_RIGHT,     PREC_NONE,  false },
+  [TOKEN_SLASH] =       { PREC_NONE,  PREC_MUL_LEFT,    PREC_MUL_RIGHT,     PREC_NONE,  false },
+  [TOKEN_OPEN_PAREN] =  { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
+  [TOKEN_CLOSE_PAREN] = { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
 };
 
 Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
@@ -183,18 +198,20 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
     NodeType infixOperatorType;
 
     switch(operator.type) {
-      case TOKEN_PLUS:
-        infixOperatorType = NODE_ADD;
-        break;
-      case TOKEN_MINUS:
-        infixOperatorType = NODE_SUBTRACT;
-        break;
-      case TOKEN_STAR:
-        infixOperatorType = NODE_MULTIPLY;
-        break;
-      case TOKEN_SLASH:
-        infixOperatorType = NODE_DIVIDE;
-        break;
+      #define MAP_INFIX(tokenType, nodeType) \
+      case tokenType: infixOperatorType = nodeType; break
+      MAP_INFIX(TOKEN_PLUS,   NODE_ADD);
+      MAP_INFIX(TOKEN_MINUS,  NODE_SUBTRACT);
+      MAP_INFIX(TOKEN_STAR,   NODE_MULTIPLY);
+      MAP_INFIX(TOKEN_SLASH,  NODE_DIVIDE);
+      MAP_INFIX(TOKEN_EQ,     NODE_EQUALS);
+      MAP_INFIX(TOKEN_NEQ,    NODE_NOT_EQUALS);
+      MAP_INFIX(TOKEN_GEQ,    NODE_GREATER_THAN_EQUALS);
+      MAP_INFIX(TOKEN_LEQ,    NODE_LESS_THAN_EQUALS);
+      MAP_INFIX(TOKEN_GT,     NODE_GREATER_THAN);
+      MAP_INFIX(TOKEN_LT,     NODE_LESS_THAN);
+      MAP_INFIX(TOKEN_ASSIGN, NODE_ASSIGN);
+      #undef MAP_INFIX
       default:
         printf("Unkown infix operator: \"%.*s\"", (int)operator.length, operator.text);
         exit(1);
@@ -220,6 +237,13 @@ void Node_free(Node* self) {
     case NODE_SUBTRACT:
     case NODE_MULTIPLY:
     case NODE_DIVIDE:
+    case NODE_EQUALS:
+    case NODE_NOT_EQUALS:
+    case NODE_GREATER_THAN_EQUALS:
+    case NODE_LESS_THAN_EQUALS:
+    case NODE_GREATER_THAN:
+    case NODE_LESS_THAN:
+    case NODE_ASSIGN:
       Node_free(((BinaryNode*)self)->arg1);
       // Don't break, cascade to further cleanup
 

@@ -269,20 +269,73 @@ static Token Scanner_scanInternal(Scanner* self) {
         return Scanner_scanNumber(self, start);
       }
 
-    #define SINGLE_CHAR_TOKEN(ch, type) \
+    #define ONE_CHAR_TOKEN(ch, type) \
     case ch: \
       { \
         char* start = self->current; \
         self->current++; \
         return makeToken(type, start, 1, self->line); \
       }
-    SINGLE_CHAR_TOKEN('+', TOKEN_PLUS);
-    SINGLE_CHAR_TOKEN('-', TOKEN_MINUS);
-    SINGLE_CHAR_TOKEN('*', TOKEN_STAR);
-    SINGLE_CHAR_TOKEN('/', TOKEN_SLASH);
-    SINGLE_CHAR_TOKEN('(', TOKEN_OPEN_PAREN);
-    SINGLE_CHAR_TOKEN(')', TOKEN_CLOSE_PAREN);
-    #undef SINGLE_CHAR_TOKEN
+    ONE_CHAR_TOKEN('+', TOKEN_PLUS);
+    ONE_CHAR_TOKEN('-', TOKEN_MINUS);
+    ONE_CHAR_TOKEN('*', TOKEN_STAR);
+    ONE_CHAR_TOKEN('/', TOKEN_SLASH);
+    ONE_CHAR_TOKEN('(', TOKEN_OPEN_PAREN);
+    ONE_CHAR_TOKEN(')', TOKEN_CLOSE_PAREN);
+    #undef ONE_CHAR_TOKEN
+
+    case '<':
+      {
+        char* start = self->current;
+        self->current++;
+
+        switch(*(self->current)) {
+          case '=':
+            self->current++;
+            return makeToken(TOKEN_LEQ, start, 2, self->line);
+          default:
+            return makeToken(TOKEN_LT, start, 1, self->line);
+        }
+      }
+    case '>':
+      {
+        char* start = self->current;
+        self->current++;
+
+        switch(*(self->current)) {
+          case '=':
+            self->current++;
+            return makeToken(TOKEN_GEQ, start, 2, self->line);
+          default:
+            return makeToken(TOKEN_GT, start, 1, self->line);
+        }
+      }
+    case '=':
+      {
+        char* start = self->current;
+        self->current++;
+
+        switch(*(self->current)) {
+          case '=':
+            self->current++;
+            return makeToken(TOKEN_EQ, start, 2, self->line);
+          default:
+            return makeToken(TOKEN_ASSIGN, start, 1, self->line);
+        }
+      }
+    case '!':
+      {
+        char* start = self->current;
+        self->current++;
+
+        switch(*(self->current)) {
+          case '=':
+            self->current++;
+            return makeToken(TOKEN_NEQ, start, 2, self->line);
+          default:
+            return makeToken(TOKEN_ERROR, "Unexpected token \"!\"", 1, self->line);
+        }
+      }
 
     case '\0':
       return makeToken(TOKEN_EOF, self->current, 1, self->line);

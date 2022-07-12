@@ -18,6 +18,15 @@ typedef enum {
   TOKEN_OPEN_PAREN,
   TOKEN_CLOSE_PAREN,
 
+  TOKEN_EQ,
+  TOKEN_NEQ,
+  TOKEN_GT,
+  TOKEN_LT,
+  TOKEN_GEQ,
+  TOKEN_LEQ,
+
+  TOKEN_ASSIGN,
+
   TOKEN_ERROR,
   TOKEN_EOF,
 } TokenType;

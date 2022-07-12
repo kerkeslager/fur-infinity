@@ -26,21 +26,29 @@ typedef struct {
 
 const char* tokenTypeAsString(TokenType type) {
     switch(type) {
-      case TOKEN_NIL: return "TOKEN_NIL";
-      case TOKEN_TRUE: return "TOKEN_TRUE";
-      case TOKEN_FALSE: return "TOKEN_FALSE";
-      case TOKEN_NOT: return "TOKEN_NOT";
-      case TOKEN_IDENTIFIER: return "TOKEN_IDENTIFIER";
-      case TOKEN_NUMBER: return "TOKEN_NUMBER";
-      case TOKEN_PLUS: return "TOKEN_PLUS";
-      case TOKEN_MINUS: return "TOKEN_MINUS";
-      case TOKEN_STAR: return "TOKEN_STAR";
-      case TOKEN_SLASH: return "TOKEN_SLASH";
-      case TOKEN_OPEN_PAREN: return "TOKEN_OPEN_PAREN";
-      case TOKEN_CLOSE_PAREN: return "TOKEN_CLOSE_PAREN";
+      #define MAP(token) case token: return #token;
+      MAP(TOKEN_NIL);
+      MAP(TOKEN_TRUE);
+      MAP(TOKEN_FALSE);
+      MAP(TOKEN_NOT);
+      MAP(TOKEN_IDENTIFIER);
+      MAP(TOKEN_NUMBER);
+      MAP(TOKEN_PLUS);
+      MAP(TOKEN_MINUS);
+      MAP(TOKEN_STAR);
+      MAP(TOKEN_SLASH);
+      MAP(TOKEN_OPEN_PAREN);
+      MAP(TOKEN_CLOSE_PAREN);
+      MAP(TOKEN_EQ);
+      MAP(TOKEN_NEQ);
+      MAP(TOKEN_GEQ);
+      MAP(TOKEN_LEQ);
+      MAP(TOKEN_GT);
+      MAP(TOKEN_LT);
+      MAP(TOKEN_ASSIGN);
 
-      case TOKEN_ERROR: return "TOKEN_ERROR";
-      case TOKEN_EOF: return "TOKEN_EOF";
+      MAP(TOKEN_ERROR);
+      MAP(TOKEN_EOF);
 
       default: return NULL;
     }
@@ -114,18 +122,22 @@ static void printNode(Node* node) {
       printUnaryNode("not", (UnaryNode*)node);
       break;
 
-    case NODE_ADD:
-      printBinaryNode("+\0", (BinaryNode*)node);
-      break;
-    case NODE_SUBTRACT:
-      printBinaryNode("-\0", (BinaryNode*)node);
-      break;
-    case NODE_MULTIPLY:
-      printBinaryNode("*\0", (BinaryNode*)node);
-      break;
-    case NODE_DIVIDE:
-      printBinaryNode("/\0", (BinaryNode*)node);
-      break;
+    #define MAP_INFIX(type, s) \
+    case type: \
+      printBinaryNode(#s, (BinaryNode*) node);\
+      break
+    MAP_INFIX(NODE_ADD, +);
+    MAP_INFIX(NODE_SUBTRACT, -);
+    MAP_INFIX(NODE_MULTIPLY, *);
+    MAP_INFIX(NODE_DIVIDE, /);
+    MAP_INFIX(NODE_EQUALS, ==);
+    MAP_INFIX(NODE_NOT_EQUALS, !=);
+    MAP_INFIX(NODE_GREATER_THAN_EQUALS, >=);
+    MAP_INFIX(NODE_LESS_THAN_EQUALS, <=);
+    MAP_INFIX(NODE_GREATER_THAN, >);
+    MAP_INFIX(NODE_LESS_THAN, <);
+    MAP_INFIX(NODE_ASSIGN, =);
+    #undef MAP_INFIX
 
     default:
       assert(false);
