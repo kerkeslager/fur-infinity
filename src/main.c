@@ -48,17 +48,16 @@ void printScan(Scanner* scanner) {
 
   size_t previousLine = 0;
 
-  printf("    Line   Type              Text\n");
-  printf("---------------------------------------------\n");
+  printf("Line Type               Text\n");
 
   while((token = Scanner_scan(scanner)).type != TOKEN_EOF) {
     const char* tokenTypeString = tokenTypeAsString(token.type);
 
     if(token.line == previousLine) {
-      printf("       |   ");
+      printf("   | ");
     } else {
       previousLine = token.line;
-      printf("%8zu   ", token.line);
+      printf("%4zu ", token.line);
     }
 
     if(tokenTypeString == NULL) {
@@ -73,6 +72,12 @@ void printScan(Scanner* scanner) {
 
 static void printNode(Node*);
 
+static void printUnaryNode(char* name, UnaryNode* node) {
+  printf("(%s ", name);
+  printNode(node->arg);
+  printf(")");
+}
+
 static void printBinaryNode(char* name, BinaryNode* node) {
   printf("(%s ", name);
   printNode(node->arg0);
@@ -82,26 +87,7 @@ static void printBinaryNode(char* name, BinaryNode* node) {
 }
 
 static void printNode(Node* node) {
-  if(node == NULL) {
-    printf("NULL");
-    fflush(stdout);
-    return;
-  }
-
   switch(node->type) {
-    case NODE_ADD:
-      printBinaryNode("+\0", (BinaryNode*)node);
-      break;
-    case NODE_SUBTRACT:
-      printBinaryNode("-\0", (BinaryNode*)node);
-      break;
-    case NODE_MULTIPLY:
-      printBinaryNode("*\0", (BinaryNode*)node);
-      break;
-    case NODE_DIVIDE:
-      printBinaryNode("/\0", (BinaryNode*)node);
-      break;
-
     case NODE_NIL:
       printf("nil");
       break;
@@ -116,6 +102,23 @@ static void printNode(Node* node) {
       break;
     case NODE_NUMBER:
       printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
+      break;
+
+    case NODE_NEGATE:
+      printUnaryNode("-\0", (UnaryNode*)node);
+      break;
+
+    case NODE_ADD:
+      printBinaryNode("+\0", (BinaryNode*)node);
+      break;
+    case NODE_SUBTRACT:
+      printBinaryNode("-\0", (BinaryNode*)node);
+      break;
+    case NODE_MULTIPLY:
+      printBinaryNode("*\0", (BinaryNode*)node);
+      break;
+    case NODE_DIVIDE:
+      printBinaryNode("/\0", (BinaryNode*)node);
       break;
 
     default:
@@ -183,6 +186,62 @@ void printCodeAsAssembly(Code* code) {
   }
 }
 
+Value runString(
+    Runtime* runtime,
+    Options options,
+    char* source,
+    int argc,
+    char** argv,
+    size_t startLine) {
+  switch(options.action) {
+    case SCAN:
+      {
+        Scanner scanner;
+        Scanner_init(&scanner, startLine, source);
+        printScan(&scanner);
+        free(source);
+        return Value_fromInt32(0);
+      }
+
+    case PARSE:
+      {
+        Scanner scanner;
+        Scanner_init(&scanner, startLine, source);
+        Node* tree = parse(&scanner);
+        printNode(tree);
+        Node_free(tree);
+        return Value_fromInt32(0);
+      }
+
+    case COMPILE:
+      {
+        Compiler compiler;
+        Compiler_init(&compiler);
+        Code* code = Compiler_compile(&compiler, source);
+        printCodeAsAssembly(code);
+        Compiler_free(&compiler);
+        return Value_fromInt32(0);
+      }
+
+    case RUN:
+      {
+        Compiler compiler;
+        Compiler_init(&compiler);
+
+        Code* code = Compiler_compile(&compiler, source);
+        Value result = Runtime_run(runtime, code);
+
+        Compiler_free(&compiler);
+
+        return result;
+      }
+
+    default:
+      assert(false);
+      return Value_fromInt32(1); // Just to quiet the cc
+  }
+}
+
 static int repl(Options options) {
   Compiler compiler;
   Compiler_init(&compiler);
@@ -203,56 +262,33 @@ static int repl(Options options) {
   size_t lineNumber = 1;
 
   for(;;) {
-    printf("> ");
+    printf("fur> ");
 
     if (!fgets(line, sizeof(line), stdin)) {
       printf("\n");
       break;
     }
 
-    Scanner scanner;
-    Scanner_init(&scanner, line);
+    Value result = runString(
+      &runtime,
+      options,
+      line,
+      0,          // Don't pass in any command line arguments
+      NULL,       // The empty argument array
+      lineNumber  // The line number to start on
+    );
 
-    /*
-     * This is a bit of a hack to get line numbers to increase in the REPL.
-     */
-    scanner.line = lineNumber;
-    lineNumber++;
-
-    switch(options.action) {
-      case SCAN:
-        {
-          printScan(&scanner);
-        } break;
-
-      case PARSE:
-        {
-          Node* tree = parse(&scanner);
-
-          printNode(tree);
-          printf("\n");
-
-          Node_free(tree);
-        } break;
-
-      case COMPILE:
-        {
-          Code* code = Compiler_compile(&compiler, line);
-          printCodeAsAssembly(code);
-        } break;
-      case RUN:
-        {
-          Code* code = Compiler_compile(&compiler, line);
-          Value result = Runtime_run(&runtime, code);
-          Value_printRepr(result);
-          printf("\n");
-        } break;
-      default:
-        assert(false);
+    if(options.action == RUN) {
+      printf("=> ");
+      Value_printRepr(result);
     }
+
+    printf("\n");
+
+    // TODO We don't support heap allocation yet, but when we do, we will
+    // need to free the value here if it's heap-allocated.
   }
 
-  Compiler_free(&compiler);
   Runtime_free(&runtime);
 
   return 0;
@@ -288,69 +324,18 @@ static char* readFile(const char* path) {
   return buffer;
 }
 
-
-int runString(Options options, char* source, int argc, char** argv) {
-  switch(options.action) {
-    case SCAN:
-      {
-        Scanner scanner;
-        Scanner_init(&scanner, source);
-        printScan(&scanner);
-        free(source);
-        return 0;
-      }
-
-    case PARSE:
-      {
-        Scanner scanner;
-        Scanner_init(&scanner, source);
-        Node* tree = parse(&scanner);
-        printNode(tree);
-        Node_free(tree);
-        return 0;
-      }
-
-    case COMPILE:
-      {
-        Compiler compiler;
-        Compiler_init(&compiler);
-        Code* code = Compiler_compile(&compiler, source);
-        printCodeAsAssembly(code);
-        Compiler_free(&compiler);
-        return 0;
-      }
-
-    case RUN:
-      {
-        Compiler compiler;
-        Compiler_init(&compiler);
-
-        Runtime runtime;
-        Runtime_init(&runtime);
-
-        Code* code = Compiler_compile(&compiler, source);
-        Value result = Runtime_run(&runtime, code);
-
-        Compiler_free(&compiler);
-        Runtime_free(&runtime);
-
-        return Value_asSuccess(result);
-      }
-
-    default:
-      assert(false);
-      return 1; // Just to quiet the cc
-  }
-}
-
 int runFile(Options options, char* filename, int argc, char** argv) {
   char* source = readFile(filename);
 
-  int result = runString(options, source, argc, argv);
+  Runtime runtime;
+  Runtime_init(&runtime);
 
+  Value result = runString(&runtime, options, source, argc, argv, 1);
+
+  Runtime_free(&runtime);
   free(source);
 
-  return result;
+  return Value_asSuccess(result);
 }
 
 void printVersion() {
@@ -394,8 +379,6 @@ void printHelp() {
 }
 
 int main(int argc, char** argv) {
-  char* filename = NULL;
-
   Options options;
   options.action = RUN;
   options.help = false;
@@ -411,7 +394,21 @@ int main(int argc, char** argv) {
           printf("Pass -h or --help for more information.\n");
           return 1;
         }
-        return runString(options, argv[i], argc - i - 1, argv + i + 1);
+
+        Runtime runtime;
+        Runtime_init(&runtime);
+
+        Value result = runString(
+          &runtime,
+          options,
+          argv[i],      // Use the argument as the source
+          argc - i - 1, // Pass in remaining arguments as command line args
+          argv + i + 1,
+          1
+        );
+
+        Runtime_free(&runtime);
+        return Value_asSuccess(result);
       } else if(argv[i][1] == '-') {
         // Long form arguments
         if(!strcmp("--compile", argv[i])) {
@@ -451,9 +448,12 @@ int main(int argc, char** argv) {
         }
       }
     } else {
-      filename = argv[i];
-
-      return runFile(options, filename, argc - i - 1, argv + i + 1);
+      return runFile(
+          options,
+          argv[i],      // Fur source file name
+          argc - i - 1, // Number of arguments after filename
+          argv + i + 1  // Remaining arguments after filename
+      );
     }
   }
 

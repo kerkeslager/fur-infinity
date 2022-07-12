@@ -23,11 +23,52 @@ static Node makeNode(NodeType type, size_t line) {
   return result;
 }
 
-static Node* makeAtomNode(NodeType type, size_t line, char* text, size_t length) {
+static Node* makeAtomNode(Token token) {
+  NodeType type;
+
+  switch(token.type) {
+    case TOKEN_NIL:
+      type = NODE_NIL;
+      break;
+    case TOKEN_TRUE:
+      type = NODE_TRUE;
+      break;
+    case TOKEN_FALSE:
+      type = NODE_FALSE;
+      break;
+    case TOKEN_IDENTIFIER:
+      type = NODE_IDENTIFIER;
+      break;
+    case TOKEN_NUMBER:
+      type = NODE_NUMBER;
+      break;
+
+    default:
+      assert(false); // TODO Better handling.
+  }
+
   AtomNode* node = malloc(sizeof(AtomNode));
-  node->node = makeNode(type, line);
-  node->text = text;
-  node->length = length;
+  node->node = makeNode(type, token.line);
+  node->text = token.text;
+  node->length = token.length;
+  return (Node*)node;
+}
+
+static Node* makeUnaryNode(Token operator, Node* arg) {
+  NodeType type;
+
+  switch(operator.type) {
+    case TOKEN_MINUS:
+      type = NODE_NEGATE;
+      break;
+
+    default:
+      assert(false);
+  }
+
+  UnaryNode* node = malloc(sizeof(UnaryNode));
+  node->node = makeNode(type, operator.line);
+  node->arg = arg;
   return (Node*)node;
 }
 
@@ -54,6 +95,8 @@ typedef enum {
   // Left associative
   PREC_MUL_LEFT,
   PREC_MUL_RIGHT,
+
+  PREC_NEG,
 } Precedence;
 
 typedef struct {
@@ -65,16 +108,16 @@ typedef struct {
 } PrecedenceRule;
 
 const static PrecedenceRule PRECEDENCE_TABLE[] = {
-// TokenType             Prefix,    InfixLeft,     InfixRight,      Postfix,   isAtom
-  [TOKEN_NIL] =        { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE, true },
-  [TOKEN_TRUE] =       { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE, true },
-  [TOKEN_FALSE] =      { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE, true },
-  [TOKEN_IDENTIFIER] = { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE, true },
-  [TOKEN_NUMBER] =     { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE, true },
-  [TOKEN_PLUS] =       { PREC_NONE, PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE, false },
-  [TOKEN_MINUS] =      { PREC_NONE, PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE, false },
-  [TOKEN_STAR] =       { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE, false },
-  [TOKEN_SLASH] =      { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE, false },
+// TokenType             Prefix,    InfixLeft,     InfixRight,      Postfix,    isAtom
+  [TOKEN_NIL] =        { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
+  [TOKEN_TRUE] =       { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
+  [TOKEN_FALSE] =      { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
+  [TOKEN_IDENTIFIER] = { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
+  [TOKEN_NUMBER] =     { PREC_NONE, PREC_NONE,     PREC_NONE,       PREC_NONE,  true },
+  [TOKEN_PLUS] =       { PREC_NONE, PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE,  false },
+  [TOKEN_MINUS] =      { PREC_NEG,  PREC_ADD_LEFT, PREC_ADD_RIGHT,  PREC_NONE,   false },
+  [TOKEN_STAR] =       { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE,  false },
+  [TOKEN_SLASH] =      { PREC_NONE, PREC_MUL_LEFT, PREC_MUL_RIGHT,  PREC_NONE,  false },
 };
 
 Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
@@ -88,30 +131,20 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
   Token token = Scanner_scan(scanner);
   Node* leftOperand = NULL;
 
-  switch(token.type) {
-    #define MAKE_ATOM(TYPE) \
-      makeAtomNode(TYPE, token.line, token.text, token.length)
-    case TOKEN_NIL:
-      leftOperand = MAKE_ATOM(NODE_NIL);
-      break;
-    case TOKEN_TRUE:
-      leftOperand = MAKE_ATOM(NODE_TRUE);
-      break;
-    case TOKEN_FALSE:
-      leftOperand = MAKE_ATOM(NODE_FALSE);
-      break;
-    case TOKEN_IDENTIFIER:
-      leftOperand = MAKE_ATOM(NODE_IDENTIFIER);
-      break;
-    case TOKEN_NUMBER:
-      leftOperand = MAKE_ATOM(NODE_NUMBER);
-      break;
-    case TOKEN_EOF:
-      return NULL;
-    #undef MAKE_ATOM
+  if(token.type == TOKEN_EOF) {
+    return NULL;
+  } else if(PRECEDENCE_TABLE[token.type].isAtom) {
+    leftOperand = makeAtomNode(token);
+  } else if(PRECEDENCE_TABLE[token.type].prefix > PREC_NONE) {
+    Node* prefixOperand = parseInternal(
+      scanner,
+      PRECEDENCE_TABLE[token.type].prefix
+    );
 
-    default:
-      assert(false); // TODO Better handling.
+    // TODO Handle this
+    assert(prefixOperand != NULL);
+
+    leftOperand = makeUnaryNode(token, prefixOperand);
   }
 
   assert(leftOperand != NULL);
@@ -180,6 +213,7 @@ void Node_free(Node* self) {
       Node_free(((BinaryNode*)self)->arg1);
       // Don't break, cascade to further cleanup
 
+    case NODE_NEGATE:
     // Unary nodes
       Node_free(((UnaryNode*)self)->arg);
       // Don't break, cascade to further cleanup

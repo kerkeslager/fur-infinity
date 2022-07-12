@@ -33,7 +33,7 @@ typedef struct {
   bool hasLookahead; // TODO This feels like a hack--is there a better way?
 } Scanner;
 
-void Scanner_init(Scanner*, char*);
+void Scanner_init(Scanner*, size_t, char*);
 
 Token Scanner_scan(Scanner*);
 Token Scanner_peek(Scanner*);

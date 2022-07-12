@@ -13,6 +13,9 @@ typedef enum {
   NODE_IDENTIFIER,
   NODE_NUMBER,
 
+  // Unary Nodes
+  NODE_NEGATE,
+
   // Binary nodes
   NODE_ADD,
   NODE_SUBTRACT,

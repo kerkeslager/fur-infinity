@@ -16,6 +16,11 @@ typedef struct {
   } as;
 } Value;
 
+#define isNil(v)      v.is_a == TYPE_NIL
+#define isTrue(v)     v.is_a == TYPE_TRUE
+#define isFalse(v)    v.is_a == TYPE_FALSE
+#define isInteger(v)  v.is_a == TYPE_INTEGER
+
 static const Value VALUE_NIL = {
   TYPE_NIL,
   42

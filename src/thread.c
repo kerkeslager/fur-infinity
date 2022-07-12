@@ -43,6 +43,16 @@ Value Stack_pop(Stack* self) {
   return result;
 }
 
+void Stack_unary(Stack* self, Value (*unary)(Value)) {
+  /*
+   * TODO Seee notes on Stack_binary, this has similar properties.
+   */
+  assert(self->top > self->items);
+
+  Value* ptr = self->top - 1;
+  *ptr = unary(*ptr);
+}
+
 void Stack_binary(Stack* self, Value (*binary)(Value, Value)) {
   /*
    * A naive implementation of binary operations would do
@@ -57,12 +67,14 @@ void Stack_binary(Stack* self, Value (*binary)(Value, Value)) {
    * TODO Let's profile to make sure the function pointer doesn't actually
    * *lose* us performance. Even if it does, we can reimplement this function
    * with the naive approach and then inline it.
+   *
+   * See also Stack_unary().
    */
   assert(self->top - 1 > self->items);
 
   self->top--;
-  Value result = binary(*(self->top - 1), *(self->top));
-  *(self->top - 1) = binary(*(self->top - 1), *(self->top));
+  Value* ptr = self->top - 1;
+  *ptr = binary(*ptr, *(self->top));
 }
 
 void Thread_init(Thread* self) {
@@ -75,9 +87,18 @@ void Thread_free(Thread* self) {
   assert(self->heap == NULL);
 }
 
+inline static Value negate(Value arg) {
+  assert(isInteger(arg));
+  arg.as.integer = -arg.as.integer;
+  return arg;
+}
+
 #define OPERATOR_BINARY_FUNCTION(name, op) \
   inline static Value name(Value arg0, Value arg1) { \
-    return Value_fromInt32(arg0.as.integer op arg1.as.integer); \
+    assert(isInteger(arg0)); \
+    assert(isInteger(arg1)); \
+    arg0.as.integer = arg0.as.integer op arg1.as.integer; \
+    return arg0; \
   }
 
 OPERATOR_BINARY_FUNCTION(add, +)
@@ -119,6 +140,11 @@ Value Thread_run(Thread* self, Code* code) {
           Stack_push(&(self->stack), value);
           index += sizeof(int32_t);
         } break;
+
+      #define UNARY_OP(function) Stack_unary(&(self->stack), function)
+      case OP_NEGATE: UNARY_OP(negate); index++;  break;
+      #undef UNARY_OP
+
 
       #define BINARY_OP(function) Stack_binary(&(self->stack), function)
       case OP_ADD:      BINARY_OP(add);       index++;  break;

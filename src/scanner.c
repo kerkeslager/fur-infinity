@@ -3,10 +3,10 @@
 #include <string.h>
 #include "scanner.h"
 
-void Scanner_init(Scanner* self, char* source) {
+void Scanner_init(Scanner* self, size_t startLine, char* source) {
   self->source = source;
   self->current = source;
-  self->line = 1;
+  self->line = startLine;
   self->hasLookahead = false;
 }
 

@@ -73,6 +73,14 @@ static void emitNode(Code* code, Node* node) {
       }
       break;
 
+    #define UNARY_NODE(op) \
+      do { \
+        emitNode(code, ((UnaryNode*)node)->arg); \
+        emitByte(code, node->line, op); \
+      } while(false)
+    case NODE_NEGATE: UNARY_NODE(OP_NEGATE);  return;
+    #undef UNARY_NODE
+
     #define BINARY_NODE(op) \
       do { \
         emitNode(code, ((BinaryNode*)node)->arg0); \
@@ -92,7 +100,7 @@ static void emitNode(Code* code, Node* node) {
 
 Code* Compiler_compile(Compiler* self, char* source) {
   Scanner scanner;
-  Scanner_init(&scanner, source);
+  Scanner_init(&scanner, 1, source);
   Node* tree = parse(&scanner);
 
   Code* result = Code_new();
