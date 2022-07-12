@@ -38,8 +38,13 @@ static Token makeToken(TokenType type, char* text, size_t length, size_t line) {
   return result;
 }
 
-static Token makeError(char* text, size_t line) {
-  return makeToken(TOKEN_ERROR, text, strlen(text), line);
+inline static Token makeError(char* errorMessage, size_t line) {
+  return makeToken(
+    TOKEN_ERROR,
+    errorMessage,
+    strlen(errorMessage),
+    line
+  );
 }
 
 static bool isAlphaNumeric(char ch) {
@@ -139,6 +144,76 @@ static Token Scanner_scanNumber(Scanner* self, char* start) {
   while(isNumeric(*(self->current))) self->current++;
 
   return makeToken(TOKEN_NUMBER, start, self->current - start, self->line);
+}
+
+inline static Token Scanner_scanString(Scanner* self, char* start, char quoteChar) {
+  for(;;) {
+    char ch = *(self->current);
+
+    switch(ch) {
+      case '\n':
+        return makeError(
+          "Unexpected end of line while scanning string literal",
+          self->line
+        );
+
+      case '\0':
+        return makeError(
+          "Unexpected end of file while scanning string literal",
+          self->line
+        );
+
+      case '\\':
+        self->current++;
+        ch = *(self->current);
+
+        switch(ch) {
+          // TODO Support more escape sequences
+          case '\'':
+          case '\"':
+          case '\\':
+          case 'n':
+          case 'r':
+          case 't':
+            self->current++;
+            /*
+             * Recursing avoids a problem with breaking from nested
+             * switch statements.
+             */
+            return Scanner_scanString(self, start, quoteChar);
+
+          default:
+            return makeError(
+                "Found unsupported escape sequence while scanning string",
+                self->line
+            );
+        }
+
+      case '\'':
+        if(ch == quoteChar) {
+          self->current++;
+          return makeToken(
+            TOKEN_SQSTR,
+            start,
+            self->current - start,
+            self->line
+          );
+        } break;
+
+      case '"':
+        if(ch == quoteChar) {
+          self->current++;
+          return makeToken(
+            TOKEN_DQSTR,
+            start,
+            self->current - start,
+            self->line
+          );
+        } break;
+    }
+
+    self->current++;
+  }
 }
 
 static Token Scanner_scanKeyword(Scanner* self, char* start, const char* suffix, TokenType type) {
@@ -281,6 +356,14 @@ static Token Scanner_scanInternal(Scanner* self) {
         return Scanner_scanNumber(self, start);
       }
 
+    case '\'':
+    case '"':
+      {
+        char* start = self->current;
+        self->current++;
+        return Scanner_scanString(self, start, *start);
+      }
+
     #define ONE_CHAR_TOKEN(ch, type) \
     case ch: \
       { \
@@ -346,7 +429,10 @@ static Token Scanner_scanInternal(Scanner* self) {
             self->current++;
             return makeToken(TOKEN_NEQ, start, 2, self->line);
           default:
-            return makeToken(TOKEN_ERROR, "Unexpected token \"!\"", 1, self->line);
+            return makeError(
+              "Unexpected token \"!\"",
+              self->line
+            );
         }
       }
 
@@ -355,7 +441,10 @@ static Token Scanner_scanInternal(Scanner* self) {
 
     default:
       // TODO More detailed error message and a sane length value
-      return makeToken(TOKEN_ERROR, "Scan error.", 0, self->line);
+      return makeError(
+        "General scan error",
+        self->line
+      );
   }
 }
 

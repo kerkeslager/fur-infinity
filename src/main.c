@@ -33,6 +33,8 @@ const char* tokenTypeAsString(TokenType type) {
       MAP(TOKEN_NOT);
       MAP(TOKEN_IDENTIFIER);
       MAP(TOKEN_NUMBER);
+      MAP(TOKEN_SQSTR);
+      MAP(TOKEN_DQSTR);
       MAP(TOKEN_DOT);
       MAP(TOKEN_PLUS);
       MAP(TOKEN_MINUS);
