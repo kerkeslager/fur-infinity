@@ -76,7 +76,7 @@ inline static uint8_t emitString(Code* code, AtomNode* node) {
    */
   ObjString* result = malloc(sizeof(ObjString));
 
-  ObjString_init(result, OBJ_STRING, charactersCount, characters);
+  ObjString_init(result, charactersCount, characters);
 
   return Code_internObject(code, (Obj*)result);
 }

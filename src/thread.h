@@ -18,6 +18,7 @@ void Stack_free(Stack*);
 // TODO Profile inlining these.
 void Stack_push(Stack*, Value);
 Value Stack_pop(Stack*);
+Value Stack_peek(Stack*);
 void Stack_binary(Stack*, Value (*binary)(Value, Value));
 
 typedef struct {

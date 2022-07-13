@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 typedef struct Obj Obj;
+typedef struct ObjConcat ObjConcat;
 typedef struct ObjString ObjString;
 
 typedef struct {

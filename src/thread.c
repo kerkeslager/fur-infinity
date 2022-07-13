@@ -43,6 +43,10 @@ Value Stack_pop(Stack* self) {
   return result;
 }
 
+Value Stack_peek(Stack* self) {
+  return *(self->top - 1);
+}
+
 void Stack_unary(Stack* self, Value (*unary)(Value)) {
   /*
    * TODO Seee notes on Stack_binary, this has similar properties.
@@ -82,9 +86,15 @@ void Thread_init(Thread* self) {
   self->heap = NULL;
 }
 
+void freeHeap(Obj* heap) {
+  if(heap == NULL) return;
+  freeHeap(heap->next);
+  Obj_free(heap);
+}
+
 void Thread_free(Thread* self) {
   Stack_free(&(self->stack));
-  assert(self->heap == NULL);
+  freeHeap(self->heap);
 }
 
 inline static Value logicalNot(Value arg) {
@@ -106,6 +116,42 @@ inline static Value negate(Value arg) {
   return arg;
 }
 
+inline static Value add(Value arg0, Value arg1) {
+  switch(arg0.is_a) {
+    case TYPE_INTEGER:
+      {
+        assert(arg1.is_a == TYPE_INTEGER);
+        arg0.as.integer = arg0.as.integer + arg1.as.integer;
+        return arg0;
+      } break;
+
+    case TYPE_OBJ:
+      {
+        assert(arg1.is_a == TYPE_OBJ);
+        Obj* o0 = arg0.as.obj;
+        Obj* o1 = arg1.as.obj;
+
+        assert(o0->type == OBJ_CONCAT || o0->type == OBJ_STRING);
+        assert(o1->type == OBJ_CONCAT || o1->type == OBJ_STRING);
+
+        /*
+         * TODO We need to get this onto the heap so it can be garbage
+         * collected, but we don't have access to the heap here.
+         * We're doing it a level up, but I'd like it if we could
+         * get it in a place where it will be garbage collected a bit more
+         * adjacent to where it's allocated, so those two things don't
+         * become detached.
+         */
+        ObjConcat* resultObj = malloc(sizeof(ObjConcat));
+        ObjConcat_init(resultObj, o0, o1);
+        return Value_fromObj((Obj*)resultObj);
+      } break;
+
+    default:
+      assert(false);
+  }
+}
+
 #define INT_BINARY_FUNCTION(name, op) \
   inline static Value name(Value arg0, Value arg1) { \
     assert(isInteger(arg0)); \
@@ -113,7 +159,6 @@ inline static Value negate(Value arg) {
     arg0.as.integer = arg0.as.integer op arg1.as.integer; \
     return arg0; \
   }
-INT_BINARY_FUNCTION(add, +)
 INT_BINARY_FUNCTION(subtract, -)
 INT_BINARY_FUNCTION(multiply, *)
 INT_BINARY_FUNCTION(divide, /)
@@ -235,11 +280,32 @@ Value Thread_run(Thread* self, Code* code) {
       #undef UNARY_OP
 
 
+      case OP_ADD:
+        {
+          Stack_binary(&(self->stack), add);
+          /*
+           * TODO This makes sure the object gets put on the heap for GC to
+           * clean up, but it's a pretty wild hack. Seems like we can do
+           * better somehow.
+           */
+
+          if(Stack_peek(&(self->stack)).is_a == TYPE_OBJ) {
+            /*
+             * This means the "add" did a concatenation of two strings
+             * but it didn't add the concatenation to the heap, so let's
+             * do that now.
+             */
+
+            Stack_peek(&(self->stack)).as.obj->next = self->heap;
+            self->heap = Stack_peek(&(self->stack)).as.obj;
+          }
+          index++;
+        } break;
+
       #define BINARY_OP(op, function)\
       case op: Stack_binary(&(self->stack), function); \
         index++; \
         break
-      BINARY_OP(OP_ADD, add);
       BINARY_OP(OP_SUBTRACT, subtract);
       BINARY_OP(OP_MULTIPLY, multiply);
       BINARY_OP(OP_DIVIDE, divide);
