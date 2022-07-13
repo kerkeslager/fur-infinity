@@ -215,6 +215,8 @@ void printCodeAsAssembly(Code* code) {
       MAP(OP_LEQ, leq);
       MAP(OP_AND, and);
       MAP(OP_OR, or);
+      MAP(OP_SET, set);
+      MAP(OP_GET, get);
       MAP(OP_PROP, prop);
       #undef MAP
       default:
@@ -286,6 +288,23 @@ Value runString(
 }
 
 static int repl(Options options) {
+  /*
+   * TODO We're currently throwing away the Code in every read/eval/print
+   * cycle. This means that in situations like:
+   *
+   * fur> a = 1
+   * fur> a
+   * => 1
+   *
+   * The Code gets thrown away between assignment and reference. Since the
+   * variable name "a" is interned on the Code object, we need to fix this
+   * before we can reference the variable name.
+   *
+   * This also means that our compiler must support compiling completely
+   * new sources onto an existing Code object. I'm not aware of any decisions
+   * I've made that will make that impossible, but it's something to be
+   * aware of, I guess.
+   */
   Compiler compiler;
   Compiler_init(&compiler);
 

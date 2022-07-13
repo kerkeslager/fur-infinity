@@ -28,6 +28,8 @@ void Instruction_print(Instruction i) {
     MAP(OP_NEQ);
     MAP(OP_GEQ);
     MAP(OP_LEQ);
+    MAP(OP_SET);
+    MAP(OP_GET);
     MAP(OP_PROP);
     MAP(OP_RETURN);
     #undef MAP

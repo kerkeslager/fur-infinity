@@ -8,6 +8,10 @@
 #include "compiler.h"
 #include "parser.h"
 
+/*
+ * TODO Given we don't store anything on the Compiler struct,
+ * do we even need it?
+ */
 void Compiler_init(Compiler* self) {
 }
 
@@ -81,6 +85,40 @@ inline static uint8_t emitString(Code* code, AtomNode* node) {
   return Code_internObject(code, (Obj*)result);
 }
 
+inline static uint8_t emitSymbol(Code* code, AtomNode* node) {
+  // Length + space for null byte
+  char* characters = malloc(node->length + 1);
+  assert(characters != NULL);
+
+  size_t tokenIndex = 0;
+  size_t charactersCount = 0;
+
+  /*
+   * TODO This code was copied from emitString so it contains the loop
+   * which is used for unescaping characters--not a concern in symbols.
+   * We should probably use strncpy.
+   */
+  for(size_t tokenIndex = 0; tokenIndex < node->length - 1; tokenIndex++) {
+    characters[charactersCount] = node->text[tokenIndex];
+    charactersCount++;
+  }
+
+  /*
+   * Even though we've got the length stored, let's append a null byte
+   * for convenience and potentially safety (though we shouldn't rely on this).
+   */
+  characters[charactersCount] = '\0';
+
+  ObjString* result = malloc(sizeof(ObjString));
+  ObjString_init(result, charactersCount, characters);
+
+  /*
+   * TODO Consider interning symbols separately or under a different type,
+   * since they have different performance concerns.
+   */
+  return Code_internObject(code, (Obj*)result);
+}
+
 inline static void emitInteger(Code* code, size_t line, int32_t integer) {
   /*
    * TODO If you trace what this does it's sort of a mess.
@@ -120,7 +158,28 @@ static void emitNode(Code* code, Node* node) {
       return;
 
     case NODE_IDENTIFIER:
-      assert(false); // TODO Implement
+      {
+        /*
+         * It's a bit unintuitive, but we actually must *emit* the symbol--
+         * we can't read it from the symbol table, because the get
+         * instruction may be in the code before the set instruction
+         * in the code, for example:
+         *
+         * def get_a():
+         *   a
+         * end
+         *
+         * a = 1
+         *
+         * This would mean that expression `a` would not be in the symbol
+         * table yet when trying to emit the OP_GET.
+         */
+        uint8_t index = emitSymbol(code, (AtomNode*)node);
+        emitByte(code, node->line, (uint8_t)OP_GET);
+        emitByte(code, node->line, index);
+        return;
+      }
+
     case NODE_NUMBER:
       {
         int32_t number = 0;
@@ -178,6 +237,35 @@ static void emitNode(Code* code, Node* node) {
     BINARY_NODE(NODE_AND,                 OP_AND);
     BINARY_NODE(NODE_OR,                  OP_OR);
     #undef BINARY_NODE
+
+    case NODE_ASSIGN:
+      {
+        BinaryNode* bNode = (BinaryNode*)node;
+
+        /*
+         * TODO This doesn't support a lot of expressions, like
+         * foo.bar = baz, but it's better to fail fast for now until
+         * we can implement those.
+         */
+        assert(bNode->arg0->type == NODE_IDENTIFIER);
+
+        /*
+         * TODO This makes it urgent that we deduplicate interned strings,
+         * since we are interning a separate string for every variable
+         * and many variables will have the same name. We also want symbol
+         * equality to be fast, so making interned strings references equal
+         * would be a big win.
+         */
+        /*
+         * TODO Consider storing variables in a separate symbol table,
+         * as they have separate performance concerns from strings.
+         */
+        emitNode(code, bNode->arg1);
+        uint8_t index = emitSymbol(code, ((AtomNode*)bNode->arg0));
+        emitByte(code, node->line, (uint8_t)OP_SET);
+        emitByte(code, node->line, index);
+        return;
+      }
 
     default:
       assert(false);

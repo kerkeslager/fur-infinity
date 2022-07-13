@@ -25,6 +25,8 @@ typedef enum {
   OP_NEQ,
   OP_GEQ,
   OP_LEQ,
+  OP_SET,
+  OP_GET,
   OP_PROP,
   OP_RETURN,
 } Instruction;
