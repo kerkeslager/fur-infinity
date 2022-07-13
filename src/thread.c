@@ -234,38 +234,38 @@ Value Thread_run(Thread* self, Code* code) {
     assert(index < code->instructions.length);
 
     uint8_t instruction = Code_get(code, index);
+    /*
+     * We increment the index *immediately* so we don't have to remember to
+     * increment it in every single case statement.
+     */
+    index++;
 
+    /*
+     * TODO Eventually we will only want this if some sort of debu flag is
+     * passed to the compiler. But right now the only people running this code
+     * are debugging it.
+     */
     Stack_print(&(self->stack));
     printf(" ");
     Instruction_print(instruction);
     printf("\n");
     fflush(stdout);
 
-    /*
-     * TODO Incrementing the index inside of every case statement is error-
-     * prone, as evidenced by the fact that I forgot to do it right before
-     * writing this comment.
-     */
-
     switch(instruction) {
       case OP_NIL:
         Stack_push(&(self->stack), VALUE_NIL);
-        index++;
         break;
 
       case OP_TRUE:
         Stack_push(&(self->stack), Value_fromBool(true));
-        index++;
         break;
 
       case OP_FALSE:
         Stack_push(&(self->stack), Value_fromBool(false));
-        index++;
         break;
 
       case OP_INTEGER:
         {
-          index++;
           Stack_push(
               &(self->stack),
               Value_fromInt32(Code_getInteger(code, index))
@@ -276,7 +276,6 @@ Value Thread_run(Thread* self, Code* code) {
 
       case OP_STRING:
         {
-          index++;
           Stack_push(
             &(self->stack),
             Value_fromObj(
@@ -297,13 +296,12 @@ Value Thread_run(Thread* self, Code* code) {
         } break;
 
       #define UNARY_OP(function) Stack_unary(&(self->stack), function)
-      case OP_NEGATE: UNARY_OP(negate);       index++;  break;
-      case OP_NOT:    UNARY_OP(logicalNot);   index++;  break;
+      case OP_NEGATE: UNARY_OP(negate);       break;
+      case OP_NOT:    UNARY_OP(logicalNot);   break;
       #undef UNARY_OP
 
       #define BINARY_OP(op, function)\
       case op: Stack_binary(&(self->stack), function); \
-        index++; \
         break
       BINARY_OP(OP_SUBTRACT, subtract);
       BINARY_OP(OP_MULTIPLY, multiply);
@@ -326,7 +324,6 @@ Value Thread_run(Thread* self, Code* code) {
        */
       case OP_ADD:
         {
-          index++;
           switch(Stack_peek(&(self->stack)).is_a) {
             case TYPE_INTEGER:
               Stack_binary(&(self->stack), add);
@@ -350,11 +347,8 @@ Value Thread_run(Thread* self, Code* code) {
 
       case OP_RETURN:
         {
-          Value result;
-          result = Stack_pop(&(self->stack));
-          // TODO Free values.
-          index++;
-          return result;
+          return Stack_pop(&(self->stack));
+          // TODO Free values on stack?
         }
 
       default:
