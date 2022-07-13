@@ -1,5 +1,5 @@
-all: clean code.o compiler.o object.o parser.o runtime.o scanner.o thread.o value.o main.o
-	gcc -Wall -Wimplicit-fallthrough {code,compiler,object,parser,runtime,scanner,thread,value,main}.o -o fur
+all: clean code.o compiler.o object.o parser.o scanner.o thread.o value.o main.o
+	gcc -Wall -Wimplicit-fallthrough {code,compiler,object,parser,scanner,thread,value,main}.o -o fur
 
 code.o:
 	gcc -c code.c -o code.o
@@ -24,9 +24,6 @@ scanner.o:
 
 thread.o:
 	gcc -c thread.c -o thread.o
-
-runtime.o:
-	gcc -c runtime.c -o runtime.o
 
 value.o:
 	gcc -c value.c -o value.o

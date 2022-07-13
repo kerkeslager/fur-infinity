@@ -291,8 +291,7 @@ Value Thread_run(Thread* self, Code* code) {
            * interned strings exist as long as the program is running. They
            * may be accessed by multiple threads which run the code, and
            * should be treated as immutable. As such, we don't want them
-           * garbage collected: they will be freed by the runtime when it
-           * frees the code.
+           * garbage collected: they will be freed by Code_free()
            */
           index++;
         } break;
@@ -327,10 +326,10 @@ Value Thread_run(Thread* self, Code* code) {
        */
       case OP_ADD:
         {
+          index++;
           switch(Stack_peek(&(self->stack)).is_a) {
             case TYPE_INTEGER:
               Stack_binary(&(self->stack), add);
-              index++;
               break;
 
             case TYPE_OBJ:
@@ -347,7 +346,6 @@ Value Thread_run(Thread* self, Code* code) {
             default:
               assert(false);
           }
-          index++;
         } break;
 
       case OP_RETURN:

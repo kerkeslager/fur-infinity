@@ -96,7 +96,7 @@ inline static void emitInteger(Code* code, size_t line, int32_t integer) {
    * - We can deduplicate integers and use less space in the constant
    *   table as well.
    * CONS:
-   * - Add a pointer lookup at runtime when pushing integers to the
+   * - Add a pointer lookup at run time when pushing integers to the
    *   stack.
    *
    * Ultimately, let's wait to make a decision on this until we have
@@ -194,7 +194,7 @@ Code* Compiler_compile(Compiler* self, char* source) {
   emitNode(result, tree);
 
   /*
-   * TODO We need to emit this because otherwise the runtime doesn't know
+   * TODO We need to emit this because otherwise the thread doesn't know
    * it's time to return. However, we don't want to require an explicit
    * return at the end of files, so there's no line associated with this
    * instruction. It probably makes sense for this to be the line of the

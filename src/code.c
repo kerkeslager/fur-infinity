@@ -146,7 +146,7 @@ int32_t Code_getInteger(Code* self, size_t index) {
 uint8_t Code_internObject(Code* self, Obj* intern) {
   /*
    * TODO Check for duplicates. It could be costly at compile time,
-   * but the payoff at runtime is obvious.
+   * but the payoff at run time is obvious.
    */
 
   size_t result = self->interns.length;

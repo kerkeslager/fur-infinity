@@ -7,8 +7,8 @@
 #include "code.h"
 #include "compiler.h"
 #include "parser.h"
-#include "runtime.h"
 #include "scanner.h"
+#include "thread.h"
 #include "value.h"
 
 typedef enum {
@@ -226,7 +226,7 @@ void printCodeAsAssembly(Code* code) {
 }
 
 Value runString(
-    Runtime* runtime,
+    Thread* thread,
     Options options,
     char* source,
     int argc,
@@ -267,8 +267,13 @@ Value runString(
         Compiler_init(&compiler);
 
         Code* code = Compiler_compile(&compiler, source);
-        Value result = Runtime_run(runtime, code);
+        Value result = Thread_run(thread, code);
 
+        /*
+         * TODO We're leaking memory here, because we should be calling
+         * a Code_free() which frees the code (notably including interned
+         * strings).
+         */
         Compiler_free(&compiler);
 
         return result;
@@ -285,15 +290,17 @@ static int repl(Options options) {
   Compiler_init(&compiler);
 
   /*
-   * We want a consistent runtime to maintain state across evals, so that
+   * We want a consistent thread to maintain state across evals, so that
    * users can do things in the REPL like:
    *
-   * > greeting = 'Hello, world'
-   * > print(greeting)
-   * Hello, world>
+   * fur> greeting = 'Hello, world'
+   * fur> print(greeting)
+   * Hello, worldfur>
+   *
+   * Eventually we'll probably want a consistent runtime as well.
    */
-  Runtime runtime;
-  Runtime_init(&runtime);
+  Thread thread;
+  Thread_init(&thread);
 
   char line[1024];
 
@@ -308,7 +315,7 @@ static int repl(Options options) {
     }
 
     Value result = runString(
-      &runtime,
+      &thread,
       options,
       line,
       0,          // Don't pass in any command line arguments
@@ -328,7 +335,7 @@ static int repl(Options options) {
     // need to free the value here if it's heap-allocated.
   }
 
-  Runtime_free(&runtime);
+  Thread_free(&thread);
 
   return 0;
 }
@@ -366,15 +373,21 @@ static char* readFile(const char* path) {
 int runFile(Options options, char* filename, int argc, char** argv) {
   char* source = readFile(filename);
 
-  Runtime runtime;
-  Runtime_init(&runtime);
+  Thread thread;
+  Thread_init(&thread);
 
-  Value result = runString(&runtime, options, source, argc, argv, 1);
+  Value result = runString(&thread, options, source, argc, argv, 1);
 
-  Runtime_free(&runtime);
+  /*
+   * We must call Value_asSuccess() before Thread_free(), because result
+   * may reference the heap, which is freed by Thread_free()
+   */
+  int ret = Value_asSuccess(result);
+
+  Thread_free(&thread);
   free(source);
 
-  return Value_asSuccess(result);
+  return ret;
 }
 
 void printVersion() {
@@ -434,11 +447,11 @@ int main(int argc, char** argv) {
           return 1;
         }
 
-        Runtime runtime;
-        Runtime_init(&runtime);
+        Thread thread;
+        Thread_init(&thread);
 
         Value result = runString(
-          &runtime,
+          &thread,
           options,
           argv[i],      // Use the argument as the source
           argc - i - 1, // Pass in remaining arguments as command line args
@@ -446,8 +459,14 @@ int main(int argc, char** argv) {
           1
         );
 
-        Runtime_free(&runtime);
-        return Value_asSuccess(result);
+        /*
+         * We must call Value_asSuccess before freeing the thread, because if
+         * result is an object, it may reference the heap, which is freed
+         * when the thread is freed.
+         */
+        int ret = Value_asSuccess(result);
+        Thread_free(&thread);
+        return ret;
       } else if(argv[i][1] == '-') {
         // Long form arguments
         if(!strcmp("--compile", argv[i])) {
