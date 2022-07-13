@@ -29,6 +29,8 @@ typedef enum {
   OP_RETURN,
 } Instruction;
 
+void Instruction_print(Instruction);
+
 /*
  * TODO We have enough of these dynamic arrays that we can start pulling
  * out some duplications into macros.

@@ -1,7 +1,9 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
+#include "code.h"
 #include "thread.h"
 #include "value.h"
 
@@ -18,15 +20,6 @@ void Stack_free(Stack* self) {
    */
 }
 
-void printStack(Stack* stack) {
-  printf("Count: %zu [", stack->top - stack->items);
-  for(Value* v = stack->items; v < stack->top; v++) {
-    printf(" ");
-    Value_printRepr(*v);
-  }
-  printf(" ]\n");
-}
-
 void Stack_push(Stack* self, Value value) {
   // TODO Handle this.
   assert((self->top - self->items) < MAX_STACK_DEPTH);
@@ -41,6 +34,21 @@ Value Stack_pop(Stack* self) {
   self->top--;
   Value result = *(self->top);
   return result;
+}
+
+Value Stack_peek(Stack* self) {
+  assert(self->top > self->items);
+
+  return *(self->top - 1);
+}
+
+void Stack_print(Stack* self) {
+  printf("[");
+  for(Value* v = self->items; v < self->top; v++) {
+    printf(" ");
+    Value_printRepr(*v);
+  }
+  printf(" ]");
 }
 
 void Stack_unary(Stack* self, Value (*unary)(Value)) {
@@ -84,7 +92,26 @@ void Thread_init(Thread* self) {
 
 void Thread_free(Thread* self) {
   Stack_free(&(self->stack));
-  assert(self->heap == NULL);
+
+  Obj* heap = self->heap;
+
+  while(heap != NULL) {
+    Obj* next = heap->next;
+    Obj_free(heap);
+    heap = next;
+  }
+}
+
+void Thread_addToHeap(Thread* self, Obj* o) {
+  /*
+   * Obj_init sets o->next to NULL, and o->next should only be used by this
+   * heap, so if it's not, that probably means that o is already in a
+   * heap, which it should not be.
+   */
+  assert(o->next == NULL);
+
+  o->next = self->heap;
+  self->heap = o;
 }
 
 inline static Value logicalNot(Value arg) {
@@ -118,6 +145,33 @@ INT_BINARY_FUNCTION(subtract, -)
 INT_BINARY_FUNCTION(multiply, *)
 INT_BINARY_FUNCTION(divide, /)
 #undef OPERATOR_BINARY_FUNCTION
+
+inline static Value concat(Value arg0, Value arg1) {
+  assert(isObj(arg0));
+  assert(isObj(arg1));
+  assert(arg0.as.obj->type == OBJ_STRING);
+  assert(arg1.as.obj->type == OBJ_STRING);
+
+  ObjString* arg0s = (ObjString*)(arg0.as.obj);
+  ObjString* arg1s = (ObjString*)(arg1.as.obj);
+
+  size_t length = arg0s->length + arg1s->length;
+
+  char* characters = malloc(length + 1); // Add room for trailing null char
+  *characters = '\0';
+
+  strncat(characters, arg0s->characters, arg0s->length);
+  strncat(characters, arg1s->characters, arg1s->length);
+
+  ObjString* s = malloc(sizeof(ObjString));
+  ObjString_init(s, length, characters);
+
+  Value v;
+  v.is_a = TYPE_OBJ;
+  v.as.obj = (Obj*)s;
+
+  return v;
+}
 
 #define ORDER_BINARY_FUNCTION(name, op) \
   inline static Value name(Value arg0, Value arg1) { \
@@ -179,7 +233,21 @@ Value Thread_run(Thread* self, Code* code) {
   for(;;) {
     assert(index < code->instructions.length);
 
-    switch(Code_get(code, index)) {
+    uint8_t instruction = Code_get(code, index);
+
+    Stack_print(&(self->stack));
+    printf(" ");
+    Instruction_print(instruction);
+    printf("\n");
+    fflush(stdout);
+
+    /*
+     * TODO Incrementing the index inside of every case statement is error-
+     * prone, as evidenced by the fact that I forgot to do it right before
+     * writing this comment.
+     */
+
+    switch(instruction) {
       case OP_NIL:
         Stack_push(&(self->stack), VALUE_NIL);
         index++;
@@ -219,12 +287,12 @@ Value Thread_run(Thread* self, Code* code) {
             )
           );
           /*
-           * Note that we DO NOT put this into the heap.
-           * Once compiled, interned strings exist as long as the
-           * program is running. They may be accessed by multiple
-           * threads which run the code, and should be treated as immutable.
-           * As such we don't want them garbage collected: they will be
-           * freed by the runtime when it frees the code.
+           * Note that we DO NOT put this into the heap. Once compiled,
+           * interned strings exist as long as the program is running. They
+           * may be accessed by multiple threads which run the code, and
+           * should be treated as immutable. As such, we don't want them
+           * garbage collected: they will be freed by the runtime when it
+           * frees the code.
            */
           index++;
         } break;
@@ -234,12 +302,10 @@ Value Thread_run(Thread* self, Code* code) {
       case OP_NOT:    UNARY_OP(logicalNot);   index++;  break;
       #undef UNARY_OP
 
-
       #define BINARY_OP(op, function)\
       case op: Stack_binary(&(self->stack), function); \
         index++; \
         break
-      BINARY_OP(OP_ADD, add);
       BINARY_OP(OP_SUBTRACT, subtract);
       BINARY_OP(OP_MULTIPLY, multiply);
       BINARY_OP(OP_DIVIDE, divide);
@@ -254,6 +320,35 @@ Value Thread_run(Thread* self, Code* code) {
       BINARY_OP(OP_AND, logicalAnd);
       BINARY_OP(OP_OR, logicalOr);
       #undef BINARY_OP
+
+      /*
+       * We can't use BINARY_OP for OP_ADD because it needs to handle
+       * strings.
+       */
+      case OP_ADD:
+        {
+          switch(Stack_peek(&(self->stack)).is_a) {
+            case TYPE_INTEGER:
+              Stack_binary(&(self->stack), add);
+              index++;
+              break;
+
+            case TYPE_OBJ:
+              {
+                Stack_binary(&(self->stack), concat);
+                Value top = Stack_peek(&(self->stack));
+
+                // Add the concatenated string to the heap
+                assert(isObj(top));
+                assert(top.as.obj->type == OBJ_STRING);
+                Thread_addToHeap(self, top.as.obj);
+              } break;
+
+            default:
+              assert(false);
+          }
+          index++;
+        } break;
 
       case OP_RETURN:
         {

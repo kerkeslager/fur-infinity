@@ -24,7 +24,7 @@ inline static void Obj_init(Obj*, ObjType);
 void Obj_free(Obj*);
 void Obj_printRepr(Obj*);
 
-void ObjString_init(ObjString*, ObjType, size_t, char*);
+void ObjString_init(ObjString*, size_t, char*);
 void ObjString_free(ObjString*);
 
 #endif

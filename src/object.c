@@ -6,8 +6,8 @@ inline static void Obj_init(Obj* self, ObjType type) {
   self->type = type;
 }
 
-void ObjString_init(ObjString* self, ObjType type, size_t length, char* characters) {
-  Obj_init(&(self->obj), type);
+void ObjString_init(ObjString* self, size_t length, char* characters) {
+  Obj_init(&(self->obj), OBJ_STRING);
   self->length = length;
   self->characters = characters;
 }

@@ -2,8 +2,40 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "object.h"
+
+void Instruction_print(Instruction i) {
+  switch(i) {
+    #define MAP(i) case i: printf(#i); break;
+    MAP(OP_NIL);
+    MAP(OP_TRUE);
+    MAP(OP_FALSE);
+    MAP(OP_INTEGER);
+    MAP(OP_STRING);
+    MAP(OP_AND);
+    MAP(OP_OR);
+    MAP(OP_ADD);
+    MAP(OP_SUBTRACT);
+    MAP(OP_MULTIPLY);
+    MAP(OP_DIVIDE);
+    MAP(OP_NEGATE);
+    MAP(OP_NOT);
+    MAP(OP_EQ);
+    MAP(OP_LT);
+    MAP(OP_GT);
+    MAP(OP_NEQ);
+    MAP(OP_GEQ);
+    MAP(OP_LEQ);
+    MAP(OP_PROP);
+    MAP(OP_RETURN);
+    #undef MAP
+
+    default:
+      assert(false);
+  }
+}
 
 void ObjList_init(ObjList* self) {
   self->length = 0;
