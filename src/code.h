@@ -67,8 +67,8 @@ typedef struct {
   InstructionList instructions;
 } Code;
 
-Code* Code_new();
-void Code_del(Code*);
+void Code_init(Code*);
+void Code_free(Code*);
 
 void Code_append(Code* self, uint8_t instruction, size_t line);
 uint8_t Code_internObject(Code* self, Obj* intern);

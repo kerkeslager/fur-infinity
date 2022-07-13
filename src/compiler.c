@@ -272,13 +272,24 @@ static void emitNode(Code* code, Node* node) {
   }
 }
 
-Code* Compiler_compile(Compiler* self, char* source) {
+/*
+ * TODO Change the name of `result` to `code`. The reasons for the
+ * previous name no longer apply.
+ */
+size_t Compiler_compile(Compiler* self, Code* result, char* source) {
+  // TODO We should probably move scanning and parsing out of this
+  // function.
   Scanner scanner;
   Scanner_init(&scanner, 1, source);
   Node* tree = parse(&scanner);
 
-  Code* result = Code_new();
+  size_t startOfEmittedCode = result->instructions.length;
 
+  /*
+   * TODO We should probably start encapsulating operations on code
+   * instead of mucking around with its guts directly from the compile
+   * function.
+   */
   emitNode(result, tree);
 
   /*
@@ -293,5 +304,5 @@ Code* Compiler_compile(Compiler* self, char* source) {
 
   Node_free(tree);
 
-  return result;
+  return startOfEmittedCode;
 }

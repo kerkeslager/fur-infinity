@@ -156,19 +156,30 @@ static void printNode(Node* node) {
   }
 }
 
-void printCodeAsAssembly(Code* code) {
+void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
   size_t lineRunIndex = 0;
   size_t lineRunCounter = 0;
 
-  for(size_t i = 0; i < code->instructions.length; i++) {
+  #define INCREMENT_LINE() \
+    do { \
+      assert(lineRunIndex < code->lineRuns.length); \
+      if(lineRunCounter == code->lineRuns.items[lineRunIndex].run) { \
+        lineRunIndex++; \
+      } \
+    } while(false)
+
+
+  // Run the line up to the current spot
+  for(size_t i = 0; i < startInstructionIndex; i++) {
+    INCREMENT_LINE();
+  }
+
+  for(size_t i = startInstructionIndex; i < code->instructions.length; i++) {
     char opString[20] = "";
     char argString[20] = "";
 
-    assert(lineRunIndex < code->lineRuns.length);
-
-    if(lineRunCounter == code->lineRuns.items[lineRunIndex].run) {
-      lineRunIndex++;
-    }
+    INCREMENT_LINE();
+    #undef INCREMENT_LINE
 
     size_t line = code->lineRuns.items[lineRunIndex].line;
 
@@ -228,6 +239,7 @@ void printCodeAsAssembly(Code* code) {
 }
 
 Value runString(
+    Code* code,
     Thread* thread,
     Options options,
     char* source,
@@ -257,8 +269,8 @@ Value runString(
       {
         Compiler compiler;
         Compiler_init(&compiler);
-        Code* code = Compiler_compile(&compiler, source);
-        printCodeAsAssembly(code);
+        size_t startIndex = Compiler_compile(&compiler, code, source);
+        printCodeAsAssembly(code, startIndex);
         Compiler_free(&compiler);
         return Value_fromInt32(0);
       }
@@ -267,9 +279,8 @@ Value runString(
       {
         Compiler compiler;
         Compiler_init(&compiler);
-
-        Code* code = Compiler_compile(&compiler, source);
-        Value result = Thread_run(thread, code);
+        size_t startIndex = Compiler_compile(&compiler, code, source);
+        Value result = Thread_run(thread, code, startIndex);
 
         /*
          * TODO We're leaking memory here, because we should be calling
@@ -309,8 +320,8 @@ static int repl(Options options) {
   Compiler_init(&compiler);
 
   /*
-   * We want a consistent thread to maintain state across evals, so that
-   * users can do things in the REPL like:
+   * We want a consistent thread and code to maintain state across evals, so
+   * that users can do things in the REPL like:
    *
    * fur> greeting = 'Hello, world'
    * fur> print(greeting)
@@ -318,6 +329,8 @@ static int repl(Options options) {
    *
    * Eventually we'll probably want a consistent runtime as well.
    */
+  Code code;
+  Code_init(&code);
   Thread thread;
   Thread_init(&thread);
 
@@ -334,6 +347,7 @@ static int repl(Options options) {
     }
 
     Value result = runString(
+      &code,
       &thread,
       options,
       line,
@@ -354,6 +368,7 @@ static int repl(Options options) {
     // need to free the value here if it's heap-allocated.
   }
 
+  Code_free(&code);
   Thread_free(&thread);
 
   return 0;
@@ -392,10 +407,20 @@ static char* readFile(const char* path) {
 int runFile(Options options, char* filename, int argc, char** argv) {
   char* source = readFile(filename);
 
+  Code code;
+  Code_init(&code);
   Thread thread;
   Thread_init(&thread);
 
-  Value result = runString(&thread, options, source, argc, argv, 1);
+  Value result = runString(
+      &code,
+      &thread,
+      options,
+      source,
+      argc,
+      argv,
+      1
+  );
 
   /*
    * We must call Value_asSuccess() before Thread_free(), because result
@@ -403,6 +428,7 @@ int runFile(Options options, char* filename, int argc, char** argv) {
    */
   int ret = Value_asSuccess(result);
 
+  Code_free(&code);
   Thread_free(&thread);
   free(source);
 
@@ -466,10 +492,13 @@ int main(int argc, char** argv) {
           return 1;
         }
 
+        Code code;
+        Code_init(&code);
         Thread thread;
         Thread_init(&thread);
 
         Value result = runString(
+          &code,
           &thread,
           options,
           argv[i],      // Use the argument as the source
@@ -484,6 +513,7 @@ int main(int argc, char** argv) {
          * when the thread is freed.
          */
         int ret = Value_asSuccess(result);
+        Code_free(&code);
         Thread_free(&thread);
         return ret;
       } else if(argv[i][1] == '-') {

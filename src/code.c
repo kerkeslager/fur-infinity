@@ -115,19 +115,16 @@ void InstructionList_append(InstructionList* self, uint8_t byte) {
   self->length++;
 }
 
-Code* Code_new() {
-  Code* self = malloc(sizeof(Code));
+void Code_init(Code* self) {
   ObjList_init(&(self->interns));
   LineRunList_init(&(self->lineRuns));
   InstructionList_init(&(self->instructions));
-  return self;
 };
 
-void Code_del(Code* self) {
+void Code_free(Code* self) {
   ObjList_free(&(self->interns)); // Free the interns!
   LineRunList_free(&(self->lineRuns));
   InstructionList_free(&(self->instructions));
-  free(self);
 }
 
 void Code_append(Code* self, uint8_t byte, size_t line) {

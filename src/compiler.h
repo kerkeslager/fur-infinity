@@ -10,6 +10,6 @@ typedef struct {
 void Compiler_init(Compiler*);
 void Compiler_free(Compiler*);
 
-Code* Compiler_compile(Compiler*, char*);
+size_t Compiler_compile(Compiler*, Code*, char*);
 
 #endif

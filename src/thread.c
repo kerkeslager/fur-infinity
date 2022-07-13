@@ -227,9 +227,7 @@ inline static Value notEquals(Value arg0, Value arg1) {
   }
 }
 
-Value Thread_run(Thread* self, Code* code) {
-  size_t index = 0;
-
+Value Thread_run(Thread* self, Code* code, size_t index) {
   for(;;) {
     assert(index < code->instructions.length);
 
