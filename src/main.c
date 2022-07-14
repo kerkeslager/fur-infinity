@@ -246,44 +246,39 @@ Value runString(
     int argc,
     char** argv,
     size_t startLine) {
-  switch(options.action) {
-    case SCAN:
-      {
-        Scanner scanner;
-        Scanner_init(&scanner, startLine, source);
-        printScan(&scanner);
-        return Value_fromInt32(0);
-      }
 
-    case PARSE:
-      {
-        Scanner scanner;
-        Scanner_init(&scanner, startLine, source);
-        Node* tree = parse(&scanner);
-        printNode(tree);
-        Node_free(tree);
-        return Value_fromInt32(0);
-      }
+  /*
+   * TODO Give the code access to the command line args. Probably in the
+   * function that calls this, actually, since that is where we initialize
+   * the code, and we have access to both argc, and argv there.
+   */
 
-    case COMPILE:
-      {
-        size_t startIndex = compile(code, source);
-        printCodeAsAssembly(code, startIndex);
-        return Value_fromInt32(0);
-      }
+  Scanner scanner;
+  Scanner_init(&scanner, startLine, source);
 
-    case RUN:
-      {
-        size_t startIndex = compile(code, source);
-        Value result = Thread_run(thread, code, startIndex);
-
-        return result;
-      }
-
-    default:
-      assert(false);
-      return Value_fromInt32(1); // Just to quiet the cc
+  if(options.action == SCAN) {
+    printScan(&scanner);
+    return Value_fromInt32(0);
   }
+
+  Node* tree = parse(&scanner);
+
+  if(options.action == PARSE) {
+    printNode(tree);
+    Node_free(tree);
+    return Value_fromInt32(0);
+  }
+
+  size_t startIndex = compile(code, tree);
+  Node_free(tree);
+
+  if(options.action == COMPILE) {
+    printCodeAsAssembly(code, startIndex);
+    return Value_fromInt32(0);
+  }
+
+  assert(options.action == RUN);
+  return Thread_run(thread, code, startIndex);
 }
 
 static int repl(Options options) {

@@ -262,37 +262,16 @@ static void emitNode(Code* code, Node* node) {
   }
 }
 
-/*
- * TODO Change the name of `result` to `code`. The reasons for the
- * previous name no longer apply.
- */
-size_t compile(Code* result, char* source) {
-  // TODO We should probably move scanning and parsing out of this
-  // function.
-  Scanner scanner;
-  Scanner_init(&scanner, 1, source);
-  Node* tree = parse(&scanner);
+size_t compile(Code* code, Node* tree) {
+  size_t startOfEmittedCode = code->instructions.length;
+  emitNode(code, tree);
 
-  size_t startOfEmittedCode = result->instructions.length;
-
-  /*
-   * TODO We should probably start encapsulating operations on code
-   * instead of mucking around with its guts directly from the compile
-   * function.
-   */
-  emitNode(result, tree);
-
-  /*
-   * TODO We need to emit this because otherwise the thread doesn't know
-   * it's time to return. However, we don't want to require an explicit
-   * return at the end of files, so there's no line associated with this
-   * instruction. It probably makes sense for this to be the line of the
-   * EOF in the file, but getting that requires some plumbing. Using 0
-   * until I can get around to implementing this.
-   */
-  emitByte(result, 0, OP_RETURN);
-
-  Node_free(tree);
+  emitByte(
+      code,
+      // TODO Wrap this so we're not mucking with Code's internals
+      code->lineRuns.items[code->lineRuns.length -1].line,
+      OP_RETURN
+  );
 
   return startOfEmittedCode;
 }
