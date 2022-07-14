@@ -267,27 +267,15 @@ Value runString(
 
     case COMPILE:
       {
-        Compiler compiler;
-        Compiler_init(&compiler);
-        size_t startIndex = Compiler_compile(&compiler, code, source);
+        size_t startIndex = compile(code, source);
         printCodeAsAssembly(code, startIndex);
-        Compiler_free(&compiler);
         return Value_fromInt32(0);
       }
 
     case RUN:
       {
-        Compiler compiler;
-        Compiler_init(&compiler);
-        size_t startIndex = Compiler_compile(&compiler, code, source);
+        size_t startIndex = compile(code, source);
         Value result = Thread_run(thread, code, startIndex);
-
-        /*
-         * TODO We're leaking memory here, because we should be calling
-         * a Code_free() which frees the code (notably including interned
-         * strings).
-         */
-        Compiler_free(&compiler);
 
         return result;
       }
@@ -300,26 +288,6 @@ Value runString(
 
 static int repl(Options options) {
   /*
-   * TODO We're currently throwing away the Code in every read/eval/print
-   * cycle. This means that in situations like:
-   *
-   * fur> a = 1
-   * fur> a
-   * => 1
-   *
-   * The Code gets thrown away between assignment and reference. Since the
-   * variable name "a" is interned on the Code object, we need to fix this
-   * before we can reference the variable name.
-   *
-   * This also means that our compiler must support compiling completely
-   * new sources onto an existing Code object. I'm not aware of any decisions
-   * I've made that will make that impossible, but it's something to be
-   * aware of, I guess.
-   */
-  Compiler compiler;
-  Compiler_init(&compiler);
-
-  /*
    * We want a consistent thread and code to maintain state across evals, so
    * that users can do things in the REPL like:
    *
@@ -327,21 +295,20 @@ static int repl(Options options) {
    * fur> print(greeting)
    * Hello, worldfur>
    *
-   * Eventually we'll probably want a consistent runtime as well.
+   * Eventually we'll probably want a consistent runtime to manage
+   * multiple threads and modules as well.
    */
   Code code;
   Code_init(&code);
   Thread thread;
   Thread_init(&thread);
 
-  char line[1024];
+  char source[1024];
 
-  size_t lineNumber = 1;
+  for(size_t lineNumber = 1; ; lineNumber++) {
+    printf("fur(%zu)> ", lineNumber);
 
-  for(;;) {
-    printf("fur> ");
-
-    if (!fgets(line, sizeof(line), stdin)) {
+    if (!fgets(source, sizeof(source), stdin)) {
       printf("\n");
       break;
     }
@@ -350,7 +317,7 @@ static int repl(Options options) {
       &code,
       &thread,
       options,
-      line,
+      source,     // The "source code" read from the repl
       0,          // Don't pass in any command line arguments
       NULL,       // The empty argument array
       lineNumber  // The line number to start on
@@ -363,9 +330,6 @@ static int repl(Options options) {
     } else if(options.action == PARSE) {
       printf("\n");
     }
-
-    // TODO We don't support heap allocation yet, but when we do, we will
-    // need to free the value here if it's heap-allocated.
   }
 
   Code_free(&code);

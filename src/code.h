@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 
+#include "macros.h"
 #include "value.h"
 
 typedef enum {
@@ -33,33 +34,15 @@ typedef enum {
 
 void Instruction_print(Instruction);
 
-/*
- * TODO We have enough of these dynamic arrays that we can start pulling
- * out some duplications into macros.
- */
-
-typedef struct {
-  size_t length;
-  size_t capacity;
-  Obj** items;
-} ObjList;
+LIST_DECL(ObjList, Obj*);
 
 typedef struct {
   size_t line;
   size_t run;
 } LineRun;
 
-typedef struct {
-  size_t length;
-  size_t capacity;
-  LineRun* items;
-} LineRunList;
-
-typedef struct {
-  size_t length;
-  size_t capacity;
-  uint8_t* items;
-} InstructionList;
+LIST_DECL(LineRunList, LineRun);
+LIST_DECL(InstructionList, uint8_t);
 
 typedef struct {
   ObjList interns;

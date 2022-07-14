@@ -8,16 +8,6 @@
 #include "compiler.h"
 #include "parser.h"
 
-/*
- * TODO Given we don't store anything on the Compiler struct,
- * do we even need it?
- */
-void Compiler_init(Compiler* self) {
-}
-
-void Compiler_free(Compiler* self) {
-}
-
 inline static void emitByte(Code* code, size_t line, uint8_t byte) {
   Code_append(code, byte, line);
 }
@@ -276,7 +266,7 @@ static void emitNode(Code* code, Node* node) {
  * TODO Change the name of `result` to `code`. The reasons for the
  * previous name no longer apply.
  */
-size_t Compiler_compile(Compiler* self, Code* result, char* source) {
+size_t compile(Code* result, char* source) {
   // TODO We should probably move scanning and parsing out of this
   // function.
   Scanner scanner;
