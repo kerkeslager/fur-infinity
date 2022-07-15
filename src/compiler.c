@@ -2,11 +2,64 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "object.h"
 #include "code.h"
 #include "compiler.h"
 #include "parser.h"
+
+void Symbol_init(Symbol* self, size_t length, char* name) {
+  assert(length <= 255);
+  self->length = length;
+  self->name = malloc(length + 1);
+  strncpy(self->name, name, length);
+  self->name[length] = '\0';
+}
+
+void Symbol_free(Symbol* self) {
+  free(self->name);
+}
+
+void SymbolStack_init(SymbolStack* self) {
+  self->top = self->items;
+}
+
+void SymbolStack_free(SymbolStack* self) {
+  for(Symbol* s = self->items; s < self->top; s++) {
+    Symbol_free(s);
+  }
+  self->top = self->items;
+}
+
+void SymbolStack_push(SymbolStack* self, Symbol value) {
+  // TODO Handle this.
+  assert((self->top - self->items) < MAX_SYMBOLSTACK_DEPTH);
+
+  *(self->top) = value;
+  self->top++;
+}
+
+Symbol SymbolStack_pop(SymbolStack* self) {
+  assert(self->top > self->items);
+
+  self->top--;
+  return *(self->top);
+}
+
+Symbol SymbolStack_peek(SymbolStack* self, uint8_t depth) {
+  assert(self->top - depth > self->items);
+
+  return *(self->top - 1 - depth);
+}
+
+void Compiler_init(Compiler* self) {
+  SymbolStack_init(&(self->stack));
+}
+
+void Compiler_free(Compiler* self) {
+  SymbolStack_free(&(self->stack));
+}
 
 inline static void emitByte(Code* code, size_t line, uint8_t byte) {
   Code_append(code, byte, line);
@@ -75,40 +128,6 @@ inline static uint8_t emitString(Code* code, AtomNode* node) {
   return Code_internObject(code, (Obj*)result);
 }
 
-inline static uint8_t emitSymbol(Code* code, AtomNode* node) {
-  // Length + space for null byte
-  char* characters = malloc(node->length + 1);
-  assert(characters != NULL);
-
-  size_t tokenIndex = 0;
-  size_t charactersCount = 0;
-
-  /*
-   * TODO This code was copied from emitString so it contains the loop
-   * which is used for unescaping characters--not a concern in symbols.
-   * We should probably use strncpy.
-   */
-  for(size_t tokenIndex = 0; tokenIndex < node->length - 1; tokenIndex++) {
-    characters[charactersCount] = node->text[tokenIndex];
-    charactersCount++;
-  }
-
-  /*
-   * Even though we've got the length stored, let's append a null byte
-   * for convenience and potentially safety (though we shouldn't rely on this).
-   */
-  characters[charactersCount] = '\0';
-
-  ObjString* result = malloc(sizeof(ObjString));
-  ObjString_init(result, charactersCount, characters);
-
-  /*
-   * TODO Consider interning symbols separately or under a different type,
-   * since they have different performance concerns.
-   */
-  return Code_internObject(code, (Obj*)result);
-}
-
 inline static void emitInteger(Code* code, size_t line, int32_t integer) {
   /*
    * TODO If you trace what this does it's sort of a mess.
@@ -135,7 +154,7 @@ inline static void emitInteger(Code* code, size_t line, int32_t integer) {
   for(int i = 0; i < 4; i++) emitByte(code, line, bytes[i]);
 }
 
-static void emitNode(Code* code, Node* node) {
+static void emitNode(Compiler* self, Code* code, Node* node) {
   switch(node->type) {
     case NODE_NIL:
       emitByte(code, node->line, (uint8_t)OP_NIL);
@@ -150,23 +169,37 @@ static void emitNode(Code* code, Node* node) {
     case NODE_IDENTIFIER:
       {
         /*
-         * It's a bit unintuitive, but we actually must *emit* the symbol--
-         * we can't read it from the symbol table, because the get
-         * instruction may be in the code before the set instruction
-         * in the code, for example:
+         * Similar to the NODE_ASSIGN, we have to look to see if the
+         * *compiler* knows if the variable exists. If so, the location
+         * on the compiler's symbol stack will be the same as the location
+         * of the stored value on the thread's stack, read from the
+         * bottom.
+         */
+        AtomNode* aNode = (AtomNode*)node;
+
+        for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
+          if(s->length == aNode->length &&
+              !strncmp(s->name, aNode->text, s->length)) {
+            emitByte(code, node->line, (uint8_t)OP_GET);
+            emitByte(code, node->line, s - (self->stack.items));
+            return;
+          }
+        }
+
+        /*
+         * If we didn't find the variable on the compiler's stack, the
+         * compiler hasn't seen it before.
          *
-         * def get_a():
-         *   a
+         * Note that this means we don't (yet!) support late bindings like
+         * this:
+         *
+         * def getFoo():
+         *   foo
          * end
          *
-         * a = 1
-         *
-         * This would mean that expression `a` would not be in the symbol
-         * table yet when trying to emit the OP_GET.
+         * foo = 'Hello, world'
          */
-        uint8_t index = emitSymbol(code, (AtomNode*)node);
-        emitByte(code, node->line, (uint8_t)OP_GET);
-        emitByte(code, node->line, index);
+        assert(false); // TODO Handle this
         return;
       }
 
@@ -196,7 +229,7 @@ static void emitNode(Code* code, Node* node) {
 
     #define UNARY_NODE(op) \
       do { \
-        emitNode(code, ((UnaryNode*)node)->arg); \
+        emitNode(self, code, ((UnaryNode*)node)->arg); \
         emitByte(code, node->line, op); \
       } while(false)
     case NODE_NEGATE: UNARY_NODE(OP_NEGATE);  return;
@@ -206,8 +239,8 @@ static void emitNode(Code* code, Node* node) {
     #define BINARY_NODE(type,op) \
     case type: \
       do { \
-        emitNode(code, ((BinaryNode*)node)->arg0); \
-        emitNode(code, ((BinaryNode*)node)->arg1); \
+        emitNode(self, code, ((BinaryNode*)node)->arg0); \
+        emitNode(self, code, ((BinaryNode*)node)->arg1); \
         emitByte(code, node->line, op); \
         return; \
       } while(false)
@@ -250,10 +283,47 @@ static void emitNode(Code* code, Node* node) {
          * TODO Consider storing variables in a separate symbol table,
          * as they have separate performance concerns from strings.
          */
-        emitNode(code, bNode->arg1);
-        uint8_t index = emitSymbol(code, ((AtomNode*)bNode->arg0));
-        emitByte(code, node->line, (uint8_t)OP_SET);
-        emitByte(code, node->line, index);
+        emitNode(self, code, bNode->arg1);
+
+        AtomNode* targetNode = ((AtomNode*)(bNode->arg0));
+
+        /*
+         * We are looking to see if there is an existing "declaration"
+         * for this variable, which would cause it to have a location on
+         * the compiler stack. If it does, the location of the variable
+         * on the thread stack is the same as the location of the symbol
+         * on the compiler stack (when read from the bottom).
+         */
+        for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
+          if(s->length == targetNode->length &&
+              !strncmp(s->name, targetNode->text, s->length)) {
+            emitByte(code, node->line, (uint8_t)OP_SET);
+            emitByte(code, node->line, s - (self->stack.items));
+            return;
+          }
+        }
+
+        /*
+         * We only get here if the symbol is not on the stack, meaning
+         * the compiler has not seen it before.
+         *
+         * This is the implicit "declaration" case of a variable. If the
+         * variable has not been assigned before, we emit no instructions,
+         * because the value we want to store in the variable is already
+         * on the top of the stack, which is where we will store the
+         * variable. However, we must record the stack location *in the
+         * compiler* so that we can emit instructions that reference
+         * this stack location by number.
+         */
+        assert(targetNode->length < 255);
+        Symbol s;
+        Symbol_init(
+            &s,
+            targetNode->length,
+            targetNode->text
+            );
+
+        SymbolStack_push(&(self->stack), s);
         return;
       }
 
@@ -262,9 +332,9 @@ static void emitNode(Code* code, Node* node) {
   }
 }
 
-size_t compile(Code* code, Node* tree) {
+size_t Compiler_compile(Compiler* self, Code* code, Node* tree) {
   size_t startOfEmittedCode = code->instructions.length;
-  emitNode(code, tree);
+  emitNode(self, code, tree);
 
   emitByte(
       code,

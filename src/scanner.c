@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -136,6 +137,13 @@ static bool isNumeric(char ch) {
 
 static Token Scanner_scanIdentifier(Scanner* self, char* start) {
   while(isAlphaNumeric(*(self->current))) self->current++;
+
+  /*
+   * Identifiers may not be any longer than 255 characters.
+   */
+  if(self->current - start > 255) {
+    assert(false); // TODO Handle this.
+  }
 
   return makeToken(TOKEN_IDENTIFIER, start, self->current - start, self->line);
 }

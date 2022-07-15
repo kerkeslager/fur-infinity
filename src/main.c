@@ -259,6 +259,7 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
 }
 
 Value runString(
+    Compiler* compiler,
     Code* code,
     Thread* thread,
     Options options,
@@ -289,7 +290,7 @@ Value runString(
     return Value_fromInt32(0);
   }
 
-  size_t startIndex = compile(code, tree);
+  size_t startIndex = Compiler_compile(compiler, code, tree);
   Node_free(tree);
 
   if(options.action == COMPILE) {
@@ -313,6 +314,8 @@ static int repl(Options options) {
    * Eventually we'll probably want a consistent runtime to manage
    * multiple threads and modules as well.
    */
+  Compiler compiler;
+  Compiler_init(&compiler);
   Code code;
   Code_init(&code);
   Thread thread;
@@ -329,6 +332,7 @@ static int repl(Options options) {
     }
 
     Value result = runString(
+      &compiler,
       &code,
       &thread,
       options,
@@ -347,6 +351,7 @@ static int repl(Options options) {
     }
   }
 
+  Compiler_free(&compiler);
   Code_free(&code);
   Thread_free(&thread);
 
@@ -386,12 +391,15 @@ static char* readFile(const char* path) {
 int runFile(Options options, char* filename, int argc, char** argv) {
   char* source = readFile(filename);
 
+  Compiler compiler;
+  Compiler_init(&compiler);
   Code code;
   Code_init(&code);
   Thread thread;
   Thread_init(&thread);
 
   Value result = runString(
+      &compiler,
       &code,
       &thread,
       options,
@@ -407,6 +415,7 @@ int runFile(Options options, char* filename, int argc, char** argv) {
    */
   int ret = Value_asSuccess(result);
 
+  Compiler_free(&compiler);
   Code_free(&code);
   Thread_free(&thread);
   free(source);
@@ -471,12 +480,15 @@ int main(int argc, char** argv) {
           return 1;
         }
 
+        Compiler compiler;
+        Compiler_init(&compiler);
         Code code;
         Code_init(&code);
         Thread thread;
         Thread_init(&thread);
 
         Value result = runString(
+          &compiler,
           &code,
           &thread,
           options,
@@ -492,8 +504,11 @@ int main(int argc, char** argv) {
          * when the thread is freed.
          */
         int ret = Value_asSuccess(result);
+
+        Compiler_free(&compiler);
         Code_free(&code);
         Thread_free(&thread);
+
         return ret;
       } else if(argv[i][1] == '-') {
         // Long form arguments

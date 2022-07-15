@@ -12,12 +12,6 @@ void Stack_init(Stack* self) {
 }
 
 void Stack_free(Stack* self) {
-  /*
-   * This function is a placeholder. Eventually we'll be pointing to heap-
-   * allocated items on the stack, so we'll want to free those. This is just
-   * here so we can call this in the appropriate spots and implement this
-   * when needed.
-   */
 }
 
 void Stack_push(Stack* self, Value value) {
@@ -32,8 +26,7 @@ Value Stack_pop(Stack* self) {
   assert(self->top > self->items);
 
   self->top--;
-  Value result = *(self->top);
-  return result;
+  return *(self->top);
 }
 
 Value Stack_peek(Stack* self) {
