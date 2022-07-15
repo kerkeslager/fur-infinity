@@ -115,7 +115,7 @@ static void printNode(Node* node) {
       printf("false");
       break;
     case NODE_IDENTIFIER:
-      printf("<var \"%.*s\">", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
+      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
       break;
     case NODE_NUMBER:
       printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
@@ -184,13 +184,6 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
     size_t line = code->lineRuns.items[lineRunIndex].line;
 
     switch(code->instructions.items[i]) {
-      #define MAP(op, name) \
-      case op: \
-        strcpy(opString, #name); \
-        break
-      MAP(OP_NIL, push_nil);
-      MAP(OP_TRUE, push_true);
-      MAP(OP_FALSE, push_false);
       case OP_INTEGER:
         strcpy(opString, "push_int");
         sprintf(
@@ -209,6 +202,35 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
             code->instructions.items[i]
         );
         break;
+
+      case OP_SET:
+        strcpy(opString, "set");
+        i++;
+        sprintf(
+            argString,
+            "%d",
+            code->instructions.items[i]
+        );
+        break;
+
+      case OP_GET:
+        strcpy(opString, "get");
+        i++;
+        sprintf(
+            argString,
+            "%d",
+            code->instructions.items[i]
+        );
+        break;
+
+      #define MAP(op, name) \
+      case op: \
+        strcpy(opString, #name); \
+        break
+      MAP(OP_NIL, push_nil);
+      MAP(OP_TRUE, push_true);
+      MAP(OP_FALSE, push_false);
+
       MAP(OP_ADD, add);
       MAP(OP_SUBTRACT, sub);
       MAP(OP_MULTIPLY, mul);
@@ -226,8 +248,6 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
       MAP(OP_LEQ, leq);
       MAP(OP_AND, and);
       MAP(OP_OR, or);
-      MAP(OP_SET, set);
-      MAP(OP_GET, get);
       MAP(OP_PROP, prop);
       #undef MAP
       default:
