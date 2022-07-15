@@ -220,10 +220,8 @@ inline static Value notEquals(Value arg0, Value arg1) {
   }
 }
 
-Value Thread_run(Thread* self, Code* code, size_t index) {
-  for(;;) {
-    assert(index < code->instructions.length);
-
+size_t Thread_run(Thread* self, Code* code, size_t index) {
+  for(;index < code->instructions.length;) {
     uint8_t instruction = Code_get(code, index);
     /*
      * We increment the index *immediately* so we don't have to remember to
@@ -243,6 +241,18 @@ Value Thread_run(Thread* self, Code* code, size_t index) {
     fflush(stdout);
 
     switch(instruction) {
+      case OP_GET:
+        assert(index < code->instructions.length);
+        // TODO Don't access the stack like this
+        Stack_push(&(self->stack), self->stack.items[Code_get(code, index)]);
+        index++;
+        break;
+      case OP_SET:
+        assert(index < code->instructions.length);
+        // TODO Don't access the stack like this
+        self->stack.items[Code_get(code, index)] = Stack_pop(&(self->stack));
+        index++;
+        break;
       case OP_NIL:
         Stack_push(&(self->stack), VALUE_NIL);
         break;
@@ -257,6 +267,7 @@ Value Thread_run(Thread* self, Code* code, size_t index) {
 
       case OP_INTEGER:
         {
+          assert(index + 3 < code->instructions.length);
           Stack_push(
               &(self->stack),
               Value_fromInt32(Code_getInteger(code, index))
@@ -267,6 +278,7 @@ Value Thread_run(Thread* self, Code* code, size_t index) {
 
       case OP_STRING:
         {
+          assert(index < code->instructions.length);
           Stack_push(
             &(self->stack),
             Value_fromObj(
@@ -336,14 +348,10 @@ Value Thread_run(Thread* self, Code* code, size_t index) {
           }
         } break;
 
-      case OP_RETURN:
-        {
-          return Stack_pop(&(self->stack));
-          // TODO Free values on stack?
-        }
-
       default:
         assert(false);
     }
   }
+
+  return index;
 }

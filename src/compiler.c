@@ -182,6 +182,7 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
               !strncmp(s->name, aNode->text, s->length)) {
             emitByte(code, node->line, (uint8_t)OP_GET);
             emitByte(code, node->line, s - (self->stack.items));
+
             return;
           }
         }
@@ -299,6 +300,18 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
               !strncmp(s->name, targetNode->text, s->length)) {
             emitByte(code, node->line, (uint8_t)OP_SET);
             emitByte(code, node->line, s - (self->stack.items));
+
+            /*
+             * TODO We'd prefer not to emit a nil instruction after every
+             * assignment, but the repl expects a return and if it pops,
+             * the variable we just assigned now points off the end of the
+             * stack.
+             *
+             * This feels like a hack, but the alternatives I have
+             * thought of so far are even hackier, so I'm just going to
+             * leave this until I have a more elegant solution.
+             */
+            emitByte(code, node->line, (uint8_t)OP_NIL);
             return;
           }
         }
@@ -324,6 +337,22 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
             );
 
         SymbolStack_push(&(self->stack), s);
+
+        /*
+         * TODO We'd prefer not to emit a nil instruction after every
+         * assignment, but the repl expects a return and if it pops,
+         * the variable we just assigned now points off the end of the
+         * stack.
+         *
+         * This feels like a hack, but the alternatives I have
+         * thought of so far are even hackier, so I'm just going to
+         * leave this until I have a more elegant solution.
+         *
+         * This is *particularly* galling with declarations, because
+         * if we don't have to emit this NIL, our declaration is an
+         * extremely satisfying total of 0 instructions at runtime.
+         */
+        emitByte(code, node->line, (uint8_t)OP_NIL);
         return;
       }
 
@@ -335,13 +364,6 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
 size_t Compiler_compile(Compiler* self, Code* code, Node* tree) {
   size_t startOfEmittedCode = code->instructions.length;
   emitNode(self, code, tree);
-
-  emitByte(
-      code,
-      // TODO Wrap this so we're not mucking with Code's internals
-      code->lineRuns.items[code->lineRuns.length -1].line,
-      OP_RETURN
-  );
 
   return startOfEmittedCode;
 }

@@ -299,7 +299,9 @@ Value runString(
   }
 
   assert(options.action == RUN);
-  return Thread_run(thread, code, startIndex);
+  Thread_run(thread, code, startIndex);
+
+  return Stack_pop(&(thread->stack));
 }
 
 static int repl(Options options) {
