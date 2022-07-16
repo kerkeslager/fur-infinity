@@ -325,7 +325,7 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
             index += jump;
           } else {
             // Step over the space that contains the jump target
-            index += 2;
+            index += sizeof(int16_t);
             Stack_pop(&(self->stack));
           }
         } break;
@@ -340,7 +340,7 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
             index += jump;
           } else {
             // Step over the space that contains the jump target
-            index += 2;
+            index += sizeof(int16_t);
             Stack_pop(&(self->stack));
           }
         } break;

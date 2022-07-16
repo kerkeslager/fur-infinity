@@ -165,7 +165,7 @@ size_t emitJump(Compiler* self, Code* code, size_t line, Instruction inst) {
 }
 
 void Compiler_patchJump(Compiler* self, Code* code, size_t jumpIndex, size_t targetIndex) {
-  if((int16_t)targetIndex - (int16_t)jumpIndex > INT16_MAX) {
+  if(targetIndex - jumpIndex > INT16_MAX) {
     assert(false); // TODO Handle this
   }
 
