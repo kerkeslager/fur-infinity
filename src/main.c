@@ -246,27 +246,24 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
         );
         break;
 
-      case OP_AND:
-        strcpy(opString, "and_jump");
-        i++;
-        sprintf(
-            argString,
-            "%i",
-            *((int16_t*)&(code->instructions.items[i]))
-        );
-        i++;
-        break;
+      #define JUMP(op, name) \
+        case op: \
+          strcpy(opString, #name); \
+          i++; \
+          sprintf( \
+              argString, \
+              "%i", \
+              *((int16_t*)&(code->instructions.items[i])) \
+          ); \
+          i++; \
+          break
 
-      case OP_OR:
-        strcpy(opString, "or_jump");
-        i++;
-        sprintf(
-            argString,
-            "%i",
-            *((int16_t*)&(code->instructions.items[i]))
-        );
-        i++;
-        break;
+      JUMP(OP_JUMP, jump);
+      JUMP(OP_JUMP_IF_TRUE, jump_if_true);
+      JUMP(OP_JUMP_IF_FALSE, jump_if_False);
+      JUMP(OP_AND, and_jump);
+      JUMP(OP_OR, or_jump);
+      #undef JUMP
 
       #define MAP(op, name) \
       case op: \

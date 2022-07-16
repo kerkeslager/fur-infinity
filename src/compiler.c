@@ -311,6 +311,25 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
         return result;
       }
 
+    case NODE_IF:
+      {
+        TernaryNode* tNode = (TernaryNode*)node;
+        size_t result = emitNode(self, code, tNode->arg0);
+        size_t patch0 = emitJump(self, code, node->line, OP_JUMP_IF_FALSE);
+        emitNode(self, code, tNode->arg1);
+
+        if(tNode->arg2 == NULL) {
+          Compiler_patchJump(self, code, patch0, code->instructions.length);
+          return result;
+        } else {
+          size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
+          emitNode(self, code, tNode->arg2);
+          Compiler_patchJump(self, code, patch0, code->instructions.length);
+          Compiler_patchJump(self, code, patch1, code->instructions.length);
+          return result;
+        }
+      }
+
     case NODE_ASSIGN:
       {
         BinaryNode* bNode = (BinaryNode*)node;
