@@ -12,8 +12,6 @@ typedef enum {
   OP_FALSE,
   OP_INTEGER,
   OP_STRING,
-  OP_AND,
-  OP_OR,
   OP_ADD,
   OP_SUBTRACT,
   OP_MULTIPLY,
@@ -29,6 +27,11 @@ typedef enum {
   OP_SET,
   OP_GET,
   OP_PROP,
+  OP_JUMP,
+  OP_JUMP_IF_TRUE,
+  OP_JUMP_IF_FALSE,
+  OP_AND,
+  OP_OR,
   OP_RETURN,
 } Instruction;
 

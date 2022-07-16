@@ -15,8 +15,6 @@ void Instruction_print(Instruction i) {
     MAP(OP_INTEGER);
     MAP(OP_STRING);
     MAP(OP_AND);
-    MAP(OP_OR);
-    MAP(OP_ADD);
     MAP(OP_SUBTRACT);
     MAP(OP_MULTIPLY);
     MAP(OP_DIVIDE);
@@ -31,6 +29,11 @@ void Instruction_print(Instruction i) {
     MAP(OP_SET);
     MAP(OP_GET);
     MAP(OP_PROP);
+    MAP(OP_JUMP);
+    MAP(OP_JUMP_IF_TRUE);
+    MAP(OP_JUMP_IF_FALSE);
+    MAP(OP_OR);
+    MAP(OP_ADD);
     MAP(OP_RETURN);
     #undef MAP
 
