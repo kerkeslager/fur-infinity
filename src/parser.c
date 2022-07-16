@@ -83,6 +83,15 @@ static Node* makeBinaryNode(NodeType type, size_t line, Node* arg0, Node* arg1) 
   return (Node*)node;
 }
 
+static Node* makeTernaryNode(NodeType type, size_t line, Node* arg0, Node* arg1, Node* arg2) {
+  TernaryNode* node = malloc(sizeof(TernaryNode));
+  node->node = makeNode(type, line);
+  node->arg0 = arg0;
+  node->arg1 = arg1;
+  node->arg2 = arg2;
+  return (Node*)node;
+}
+
 typedef enum {
   // This precedence rule should never match
   PREC_NONE,
@@ -137,6 +146,32 @@ typedef struct {
   bool isAtom; // Smallest item last for struct packing
 } PrecedenceRule;
 
+Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower);
+
+Node* parseIf(Scanner* scanner, size_t line) {
+  // TODO Can we set a precedence that ensures this is a boolean?
+  Node* test = parseInternal(scanner, PREC_ANY);
+
+  Token token = Scanner_scan(scanner);
+  assert(token.type == TOKEN_COLON);
+
+  Node* leftBranch = parseInternal(scanner, PREC_ANY);
+
+  Node* rightBranch = NULL;
+
+  token = Scanner_scan(scanner);
+  assert(token.type == TOKEN_ELSE || token.type == TOKEN_END);
+
+  if(token.type == TOKEN_ELSE) {
+    rightBranch = parseInternal(scanner, PREC_ANY);
+    token = Scanner_scan(scanner);
+  }
+
+  assert(token.type == TOKEN_END);
+
+  return makeTernaryNode(NODE_IF, line, test, leftBranch, rightBranch);
+}
+
 const static PrecedenceRule PRECEDENCE_TABLE[] = {
 // TokenType              Prefix,     InfixLeft,        InfixRight,         Postfix,    isAtom
   [TOKEN_NIL] =         { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
@@ -180,6 +215,8 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
     return NULL;
   } else if(PRECEDENCE_TABLE[token.type].isAtom) {
     leftOperand = makeAtomNode(token);
+  } else if(token.type == TOKEN_IF) {
+    return parseIf(scanner, token.line);
   } else if(token.type == TOKEN_OPEN_PAREN) {
     leftOperand = parseInternal(scanner, PREC_ANY);
     token = Scanner_scan(scanner);
@@ -208,7 +245,14 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
   for(;;) {
     Token operator = Scanner_peek(scanner);
 
-    if(operator.type == TOKEN_EOF) return leftOperand;
+    switch(operator.type) {
+      case TOKEN_ELSE:
+      case TOKEN_END:
+      case TOKEN_EOF:
+        return leftOperand;
+      default:
+        break;
+    }
 
     Precedence leftBindingPower = PRECEDENCE_TABLE[operator.type].infixLeft;
 
@@ -257,8 +301,12 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
 }
 
 void Node_free(Node* self) {
+  if(self == NULL) return;
+
   switch(self->type) {
-    // TODO Clean up arg2 for ternary node types here
+    case NODE_IF:
+      Node_free(((TernaryNode*)self)->arg2);
+      // Don't break, cascade to further cleanup
 
     // Binary nodes
     case NODE_PROPERTY:

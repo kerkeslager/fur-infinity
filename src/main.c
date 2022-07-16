@@ -107,6 +107,21 @@ static void printBinaryNode(char* name, BinaryNode* node) {
   printf(")");
 }
 
+static void printTernaryNode(char* name, TernaryNode* node) {
+  printf("(%s ", name);
+  printNode(node->arg0);
+  printf(" ");
+  printNode(node->arg1);
+
+  // The third argument to an if statement may be null
+  if(node->arg2 != NULL) {
+    printf(" ");
+    printNode(node->arg2);
+  }
+
+  printf(")");
+}
+
 static void printNode(Node* node) {
   switch(node->type) {
     case NODE_NIL:
@@ -154,6 +169,10 @@ static void printNode(Node* node) {
     MAP_INFIX(NODE_OR, or);
     MAP_INFIX(NODE_PROPERTY, .);
     #undef MAP_INFIX
+
+    case NODE_IF:
+      printTernaryNode("if", (TernaryNode*)node);
+      break;
 
     default:
       assert(false);

@@ -34,6 +34,9 @@ typedef enum {
   NODE_OR,
   NODE_ASSIGN,
 
+  // Ternary nodes
+  NODE_IF,
+
 } NodeType;
 
 typedef struct {
