@@ -257,11 +257,35 @@ static Token Scanner_scanInternal(Scanner* self) {
         return Scanner_scanKeyword(self, start, "nd", TOKEN_AND);
       }
 
+    case 'e':
+      {
+        char* start = self->current;
+        self->current++;
+
+        switch(*(self->current)) {
+          case 'l':
+            self->current++;
+            return Scanner_scanKeyword(self, start, "se", TOKEN_ELSE);
+          case 'n':
+            self->current++;
+            return Scanner_scanKeyword(self, start, "d", TOKEN_END);
+          default:
+            return Scanner_scanIdentifier(self, start);
+        }
+      }
+
     case 'f':
       {
         char* start = self->current;
         self->current++;
         return Scanner_scanKeyword(self, start, "alse", TOKEN_FALSE);
+      }
+
+    case 'i':
+      {
+        char* start = self->current;
+        self->current++;
+        return Scanner_scanKeyword(self, start, "f", TOKEN_IF);
       }
 
     case 'n':
@@ -298,10 +322,8 @@ static Token Scanner_scanInternal(Scanner* self) {
     case 'b':
     case 'c':
     case 'd':
-    case 'e':
     case 'g':
     case 'h':
-    case 'i':
     case 'j':
     case 'k':
     case 'l':
@@ -386,6 +408,7 @@ static Token Scanner_scanInternal(Scanner* self) {
     ONE_CHAR_TOKEN('(', TOKEN_OPEN_PAREN);
     ONE_CHAR_TOKEN(')', TOKEN_CLOSE_PAREN);
     ONE_CHAR_TOKEN('.', TOKEN_DOT);
+    ONE_CHAR_TOKEN(':', TOKEN_COLON);
     #undef ONE_CHAR_TOKEN
 
     case '<':

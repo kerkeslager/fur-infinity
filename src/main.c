@@ -40,6 +40,7 @@ const char* tokenTypeAsString(TokenType type) {
       MAP(TOKEN_MINUS);
       MAP(TOKEN_STAR);
       MAP(TOKEN_SLASH);
+      MAP(TOKEN_COLON);
       MAP(TOKEN_OPEN_PAREN);
       MAP(TOKEN_CLOSE_PAREN);
       MAP(TOKEN_EQ);
@@ -51,6 +52,9 @@ const char* tokenTypeAsString(TokenType type) {
       MAP(TOKEN_AND);
       MAP(TOKEN_OR);
       MAP(TOKEN_ASSIGN);
+      MAP(TOKEN_IF);
+      MAP(TOKEN_ELSE);
+      MAP(TOKEN_END);
 
       MAP(TOKEN_ERROR);
       MAP(TOKEN_EOF);

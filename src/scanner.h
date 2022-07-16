@@ -20,6 +20,8 @@ typedef enum {
   TOKEN_STAR,
   TOKEN_SLASH,
 
+  TOKEN_COLON,
+
   TOKEN_OPEN_PAREN,
   TOKEN_CLOSE_PAREN,
 
@@ -34,6 +36,10 @@ typedef enum {
   TOKEN_OR,
 
   TOKEN_ASSIGN,
+
+  TOKEN_IF,
+  TOKEN_ELSE,
+  TOKEN_END,
 
   TOKEN_ERROR,
   TOKEN_EOF,

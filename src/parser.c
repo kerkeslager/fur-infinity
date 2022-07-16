@@ -294,8 +294,6 @@ void Node_free(Node* self) {
       // Note that we don't clean up the text associated with atom nodes
       // This is because it contains pointers to source, which we will clean up once
       // the parse is done and code generated.
-
-      // TODO Free the source once parse is done and code is generated. :)
       break;
 
     default:
