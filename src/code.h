@@ -53,7 +53,7 @@ typedef struct {
 void Code_init(Code*);
 void Code_free(Code*);
 
-void Code_append(Code* self, uint8_t instruction, size_t line);
+size_t Code_append(Code* self, uint8_t instruction, size_t line);
 uint8_t Code_internObject(Code* self, Obj* intern);
 
 // TODO Profile inlining these.
@@ -63,7 +63,8 @@ uint8_t Code_internObject(Code* self, Obj* intern);
  * profile to do anything.
  */
 Instruction Code_get(Code*, size_t index);
-int32_t Code_getInteger(Code*, size_t index);
+int16_t Code_getInt16(Code*, size_t index);
+int32_t Code_getInt32(Code*, size_t index);
 
 Obj* Code_getInterned(Code* self, uint8_t index);
 

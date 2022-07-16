@@ -179,17 +179,6 @@ ORDER_BINARY_FUNCTION(lessThanEquals, <=)
 ORDER_BINARY_FUNCTION(greaterThanEquals, >=)
 #undef ORDER_BINARY_FUNCTION
 
-// TODO Implement short-circuiting.
-#define LOGICAL_BINARY_FUNCTION(name, op) \
-  inline static Value name(Value arg0, Value arg1) { \
-    assert(isBoolean(arg0)); \
-    assert(isBoolean(arg1)); \
-    return Value_fromBool(Value_toBool(arg0) op Value_toBool(arg1)); \
-  }
-LOGICAL_BINARY_FUNCTION(logicalAnd, &&);
-LOGICAL_BINARY_FUNCTION(logicalOr, ||);
-#undef LOGICAL_BINARY_FUNCTION
-
 inline static Value equals(Value arg0, Value arg1) {
   switch(arg0.is_a) {
     case TYPE_NIL:
@@ -270,7 +259,7 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
           assert(index + 3 < code->instructions.length);
           Stack_push(
               &(self->stack),
-              Value_fromInt32(Code_getInteger(code, index))
+              Value_fromInt32(Code_getInt32(code, index))
           );
 
           index += sizeof(int32_t);
@@ -316,10 +305,45 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
       BINARY_OP(OP_GEQ, greaterThanEquals);
       BINARY_OP(OP_LEQ, lessThanEquals);
 
-      // TODO Implement short-circuiting
-      BINARY_OP(OP_AND, logicalAnd);
-      BINARY_OP(OP_OR, logicalOr);
       #undef BINARY_OP
+
+      /*
+       * OP_AND and OP_OR are a bit complicated.
+       *
+       * They peek at the top of the stack. If they find the value they
+       * jump on, they *leave the value on the stack* and jump. If not,
+       * they *drop the value from the stack* and continue on.
+       */
+      case OP_AND:
+        {
+          Value v = Stack_peek(&(self->stack));
+
+          assert(v.is_a == TYPE_TRUE || v.is_a == TYPE_FALSE);
+
+          if(v.is_a == TYPE_FALSE) {
+            int16_t jump = Code_getInt16(code, index);
+            index += jump;
+          } else {
+            // Step over the space that contains the jump target
+            index += 2;
+            Stack_pop(&(self->stack));
+          }
+        } break;
+      case OP_OR:
+        {
+          Value v = Stack_peek(&(self->stack));
+
+          assert(v.is_a == TYPE_TRUE || v.is_a == TYPE_FALSE);
+
+          if(v.is_a == TYPE_TRUE) {
+            int16_t jump = Code_getInt16(code, index);
+            index += jump;
+          } else {
+            // Step over the space that contains the jump target
+            index += 2;
+            Stack_pop(&(self->stack));
+          }
+        } break;
 
       /*
        * We can't use BINARY_OP for OP_ADD because it needs to handle

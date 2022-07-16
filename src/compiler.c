@@ -61,8 +61,8 @@ void Compiler_free(Compiler* self) {
   SymbolStack_free(&(self->stack));
 }
 
-inline static void emitByte(Code* code, size_t line, uint8_t byte) {
-  Code_append(code, byte, line);
+inline static size_t emitByte(Code* code, size_t line, uint8_t byte) {
+  return Code_append(code, byte, line);
 }
 
 inline static uint8_t emitString(Code* code, AtomNode* node) {
@@ -154,17 +154,45 @@ inline static void emitInteger(Code* code, size_t line, int32_t integer) {
   for(int i = 0; i < 4; i++) emitByte(code, line, bytes[i]);
 }
 
-static void emitNode(Compiler* self, Code* code, Node* node) {
+size_t emitJump(Compiler* self, Code* code, size_t line, Instruction inst) {
+  emitByte(code, line, (uint8_t)inst);
+
+  assert(sizeof(uint8_t) * 2 == sizeof(int16_t));
+
+  size_t result = emitByte(code, line, 0);
+  emitByte(code, line, 0);
+  return result;
+}
+
+void Compiler_patchJump(Compiler* self, Code* code, size_t jumpIndex, size_t targetIndex) {
+  if((int16_t)targetIndex - (int16_t)jumpIndex > INT16_MAX) {
+    assert(false); // TODO Handle this
+  }
+
+  if((int16_t)targetIndex - (int16_t)jumpIndex < INT16_MIN) {
+    /*
+     * TODO Handle this--to be honest I'm not entirely sure the check
+     * above is correct because the subtraction of the two size_ts is
+     * probably wrapping around to a positive. But I don't think we're
+     * emitting anything that would trigger this condition so I'm not
+     * going to fix it at the moment.
+     */
+    assert(false);
+  }
+
+  int16_t jmp = (int16_t)targetIndex - (int16_t)jumpIndex;
+
+  *((int16_t*)(&(code->instructions.items[jumpIndex]))) = jmp;
+}
+
+static size_t emitNode(Compiler* self, Code* code, Node* node) {
   switch(node->type) {
     case NODE_NIL:
-      emitByte(code, node->line, (uint8_t)OP_NIL);
-      return;
+      return emitByte(code, node->line, (uint8_t)OP_NIL);
     case NODE_TRUE:
-      emitByte(code, node->line, (uint8_t)OP_TRUE);
-      return;
+      return emitByte(code, node->line, (uint8_t)OP_TRUE);
     case NODE_FALSE:
-      emitByte(code, node->line, (uint8_t)OP_FALSE);
-      return;
+      return emitByte(code, node->line, (uint8_t)OP_FALSE);
 
     case NODE_IDENTIFIER:
       {
@@ -180,10 +208,10 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
         for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
           if(s->length == aNode->length &&
               !strncmp(s->name, aNode->text, s->length)) {
-            emitByte(code, node->line, (uint8_t)OP_GET);
+            size_t result = emitByte(code, node->line, (uint8_t)OP_GET);
             emitByte(code, node->line, s - (self->stack.items));
 
-            return;
+            return result;
           }
         }
 
@@ -201,7 +229,7 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
          * foo = 'Hello, world'
          */
         assert(false); // TODO Handle this
-        return;
+        return 0;
       }
 
     case NODE_NUMBER:
@@ -216,34 +244,36 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
           number = number * 10 + digit;
         }
 
-        emitByte(code, node->line, (uint8_t)OP_INTEGER);
+        size_t result = emitByte(code, node->line, (uint8_t)OP_INTEGER);
         emitInteger(code, node->line, number);
-      }
-      break;
+        return result;
+      } break;
 
     case NODE_STRING:
       {
         uint8_t index = emitString(code, (AtomNode*)node);
-        emitByte(code, node->line, (uint8_t)OP_STRING);
+        size_t result = emitByte(code, node->line, (uint8_t)OP_STRING);
         emitByte(code, node->line, index);
+        return result;
       } break;
 
     #define UNARY_NODE(op) \
       do { \
-        emitNode(self, code, ((UnaryNode*)node)->arg); \
+        size_t result = emitNode(self, code, ((UnaryNode*)node)->arg); \
         emitByte(code, node->line, op); \
+        return result; \
       } while(false)
-    case NODE_NEGATE: UNARY_NODE(OP_NEGATE);  return;
-    case NODE_NOT:    UNARY_NODE(OP_NOT);     return;
+    case NODE_NEGATE: UNARY_NODE(OP_NEGATE);
+    case NODE_NOT:    UNARY_NODE(OP_NOT);
     #undef UNARY_NODE
 
     #define BINARY_NODE(type,op) \
     case type: \
       do { \
-        emitNode(self, code, ((BinaryNode*)node)->arg0); \
+        size_t result = emitNode(self, code, ((BinaryNode*)node)->arg0); \
         emitNode(self, code, ((BinaryNode*)node)->arg1); \
         emitByte(code, node->line, op); \
-        return; \
+        return result; \
       } while(false)
     BINARY_NODE(NODE_PROPERTY,            OP_PROP);
     BINARY_NODE(NODE_ADD,                 OP_ADD);
@@ -257,10 +287,29 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
     BINARY_NODE(NODE_GREATER_THAN_EQUALS, OP_GEQ);
     BINARY_NODE(NODE_LESS_THAN_EQUALS,    OP_LEQ);
 
-    // TODO Implement short-circuiting
-    BINARY_NODE(NODE_AND,                 OP_AND);
-    BINARY_NODE(NODE_OR,                  OP_OR);
     #undef BINARY_NODE
+
+    case NODE_AND:
+      {
+        BinaryNode* bNode = (BinaryNode*)node;
+        size_t result = emitNode(self, code, bNode->arg0);
+        size_t toPatch = emitJump(self, code, node->line, OP_AND);
+        emitNode(self, code, bNode->arg1);
+
+        Compiler_patchJump(self, code, toPatch, code->instructions.length);
+        return result;
+      }
+
+    case NODE_OR:
+      {
+        BinaryNode* bNode = (BinaryNode*)node;
+        size_t result = emitNode(self, code, bNode->arg0);
+        size_t toPatch = emitJump(self, code, node->line, OP_OR);
+        emitNode(self, code, bNode->arg1);
+
+        Compiler_patchJump(self, code, toPatch, code->instructions.length);
+        return result;
+      }
 
     case NODE_ASSIGN:
       {
@@ -284,7 +333,7 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
          * TODO Consider storing variables in a separate symbol table,
          * as they have separate performance concerns from strings.
          */
-        emitNode(self, code, bNode->arg1);
+        size_t result = emitNode(self, code, bNode->arg1);
 
         AtomNode* targetNode = ((AtomNode*)(bNode->arg0));
 
@@ -312,7 +361,7 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
              * leave this until I have a more elegant solution.
              */
             emitByte(code, node->line, (uint8_t)OP_NIL);
-            return;
+            return result;
           }
         }
 
@@ -353,7 +402,7 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
          * extremely satisfying total of 0 instructions at runtime.
          */
         emitByte(code, node->line, (uint8_t)OP_NIL);
-        return;
+        return result;
       }
 
     default:
@@ -362,8 +411,5 @@ static void emitNode(Compiler* self, Code* code, Node* node) {
 }
 
 size_t Compiler_compile(Compiler* self, Code* code, Node* tree) {
-  size_t startOfEmittedCode = code->instructions.length;
-  emitNode(self, code, tree);
-
-  return startOfEmittedCode;
+  return emitNode(self, code, tree);
 }

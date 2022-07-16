@@ -175,8 +175,8 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
   }
 
   for(size_t i = startInstructionIndex; i < code->instructions.length; i++) {
-    char opString[20] = "";
-    char argString[20] = "";
+    char opString[32] = "";
+    char argString[32] = "";
 
     INCREMENT_LINE();
     #undef INCREMENT_LINE
@@ -223,6 +223,28 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
         );
         break;
 
+      case OP_AND:
+        strcpy(opString, "and_jump");
+        i++;
+        sprintf(
+            argString,
+            "%i",
+            *((int16_t*)&(code->instructions.items[i]))
+        );
+        i++;
+        break;
+
+      case OP_OR:
+        strcpy(opString, "or_jump");
+        i++;
+        sprintf(
+            argString,
+            "%i",
+            *((int16_t*)&(code->instructions.items[i]))
+        );
+        i++;
+        break;
+
       #define MAP(op, name) \
       case op: \
         strcpy(opString, #name); \
@@ -246,15 +268,13 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
       MAP(OP_NEQ, neq);
       MAP(OP_GEQ, geq);
       MAP(OP_LEQ, leq);
-      MAP(OP_AND, and);
-      MAP(OP_OR, or);
       MAP(OP_PROP, prop);
       #undef MAP
       default:
         assert(false);
     }
 
-    printf("%-10s %-5s ; %zu\n", opString, argString, line);
+    printf("%-20s %-5s ; %zu\n", opString, argString, line);
   }
 }
 

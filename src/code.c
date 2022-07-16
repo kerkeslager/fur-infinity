@@ -103,7 +103,7 @@ void InstructionList_free(InstructionList* self) {
   free(self->items);
 }
 
-void InstructionList_append(InstructionList* self, uint8_t byte) {
+size_t InstructionList_append(InstructionList* self, uint8_t byte) {
   if(self->length == self->capacity) {
     self->capacity *= 2;
     self->items = realloc(self->items, sizeof(uint8_t) * self->capacity);
@@ -111,8 +111,10 @@ void InstructionList_append(InstructionList* self, uint8_t byte) {
     assert(self->items != NULL); // TODO Handle this.
   }
 
+  size_t result = self->length;
   self->items[self->length] = byte;
   self->length++;
+  return result;
 }
 
 void Code_init(Code* self) {
@@ -127,9 +129,10 @@ void Code_free(Code* self) {
   InstructionList_free(&(self->instructions));
 }
 
-void Code_append(Code* self, uint8_t byte, size_t line) {
-  InstructionList_append(&(self->instructions), byte);
+size_t Code_append(Code* self, uint8_t byte, size_t line) {
+  size_t result = InstructionList_append(&(self->instructions), byte);
   LineRunList_append(&(self->lineRuns), line);
+  return result;
 }
 
 Instruction Code_get(Code* self, size_t index) {
@@ -137,7 +140,12 @@ Instruction Code_get(Code* self, size_t index) {
   return self->instructions.items[index];
 }
 
-int32_t Code_getInteger(Code* self, size_t index) {
+int16_t Code_getInt16(Code* self, size_t index) {
+  assert(index <= self->instructions.length - sizeof(int16_t));
+  return *((int16_t*)(self->instructions.items + index));
+}
+
+int32_t Code_getInt32(Code* self, size_t index) {
   assert(index <= self->instructions.length - sizeof(int32_t));
   return *((int32_t*)(self->instructions.items + index));
 }
