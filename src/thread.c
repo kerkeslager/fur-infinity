@@ -232,8 +232,19 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
     switch(instruction) {
       case OP_GET:
         assert(index < code->instructions.length);
+        size_t stackIndex = Code_get(code, index);
+
+        /*
+         * If this fails, it means we either pointed our get instruction
+         * beyond the edge of the stack, or we popped off our variable
+         * when we shouldn't have. Either is a bug. It would be better to
+         * catch the latter case closer to where it happens, but that's hard.
+         * "Better late than never."
+         */
+        assert(self->stack.items + stackIndex < self->stack.top);
+
         // TODO Don't access the stack like this
-        Stack_push(&(self->stack), self->stack.items[Code_get(code, index)]);
+        Stack_push(&(self->stack), self->stack.items[stackIndex]);
         index++;
         break;
       case OP_SET:
@@ -286,6 +297,10 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
            */
           index++;
         } break;
+
+      case OP_DROP:
+        Stack_pop(&(self->stack));
+        break;
 
       #define UNARY_OP(function) Stack_unary(&(self->stack), function)
       case OP_NEGATE: UNARY_OP(negate);       break;

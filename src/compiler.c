@@ -374,6 +374,22 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
         emitNode(self, code, bNode->arg1);
 
         /*
+         * We have to drop the results of the while body, otherwise
+         * they pile up on the stack.
+         *
+         * It might appear that we can optimize this by not pushing an
+         * item onto the stack in the first place, but the implementation
+         * turns out to be non-trivial due to cases where, for example,
+         * the previous instruction pushes an integer (because the integer
+         * is encoded after the instruction) or jumps (because the jump
+         * delta is encoded after the instruction).
+         */
+        /*
+         * TODO Come up with a way to not have to do this.
+         */
+        emitInstruction(code, node->line, OP_DROP);
+
+        /*
          * Jump back to the beginning of the loop.
          */
         /*
@@ -384,6 +400,8 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
         Compiler_patchJump(self, code, patch1, result);
 
         Compiler_patchJumpToCurrent(self, code, patch0);
+
+        emitInstruction(code, node->line, OP_NIL);
         return result;
       }
 

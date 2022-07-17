@@ -275,6 +275,7 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
       MAP(OP_NIL, push_nil);
       MAP(OP_TRUE, push_true);
       MAP(OP_FALSE, push_false);
+      MAP(OP_DROP, drop);
 
       MAP(OP_ADD, add);
       MAP(OP_SUBTRACT, sub);

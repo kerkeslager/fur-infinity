@@ -14,6 +14,7 @@ void Instruction_print(Instruction i) {
     MAP(OP_FALSE);
     MAP(OP_INTEGER);
     MAP(OP_STRING);
+    MAP(OP_DROP);
     MAP(OP_AND);
     MAP(OP_SUBTRACT);
     MAP(OP_MULTIPLY);
