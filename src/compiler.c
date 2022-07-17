@@ -192,24 +192,32 @@ size_t emitJump(Compiler* self, Code* code, size_t line, Instruction inst) {
 }
 
 void Compiler_patchJump(Compiler* self, Code* code, size_t jumpIndex, size_t targetIndex) {
-  if(targetIndex - jumpIndex > INT16_MAX) {
-    assert(false); // TODO Handle this
-  }
+  // TODO Handle these
+  assert(jumpIndex <= INT32_MAX);
+  assert(targetIndex <= INT32_MAX);
 
-  if((int16_t)targetIndex - (int16_t)jumpIndex < INT16_MIN) {
-    /*
-     * TODO Handle this--to be honest I'm not entirely sure the check
-     * above is correct because the subtraction of the two size_ts is
-     * probably wrapping around to a positive. But I don't think we're
-     * emitting anything that would trigger this condition so I'm not
-     * going to fix it at the moment.
-     */
-    assert(false);
-  }
+  /*
+   * Cast into signed integers so that the result of out subtraction is
+   * signed, i.e. jumpIndex can be greater than targetIndex.
+   */
+  int32_t intJumpIndex = (int32_t)jumpIndex;
+  int32_t intTargetIndex = (int32_t)targetIndex;
 
-  int16_t jmp = (int16_t)targetIndex - (int16_t)jumpIndex;
+  int32_t jump = intTargetIndex - intJumpIndex;
 
-  *((int16_t*)(&(code->instructions.items[jumpIndex]))) = jmp;
+  /*
+   * Now that we have cast into sign, let't catch any overflows and then
+   * cast into the right size.
+   */
+  // TODO Handle these.
+  assert(jump <= INT16_MAX);
+  assert(jump >= INT16_MIN);
+
+  *((int16_t*)(&(code->instructions.items[jumpIndex]))) = (int16_t)jump;
+}
+
+void Compiler_patchJumpToCurrent(Compiler* self, Code* code, size_t jumpIndex) {
+  Compiler_patchJump(self, code, jumpIndex, code->instructions.length);
 }
 
 static size_t emitNode(Compiler* self, Code* code, Node* node) {
@@ -323,7 +331,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
         size_t toPatch = emitJump(self, code, node->line, OP_AND);
         emitNode(self, code, bNode->arg1);
 
-        Compiler_patchJump(self, code, toPatch, code->instructions.length);
+        Compiler_patchJumpToCurrent(self, code, toPatch);
         return result;
       }
 
@@ -334,7 +342,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
         size_t toPatch = emitJump(self, code, node->line, OP_OR);
         emitNode(self, code, bNode->arg1);
 
-        Compiler_patchJump(self, code, toPatch, code->instructions.length);
+        Compiler_patchJumpToCurrent(self, code, toPatch);
         return result;
       }
 
@@ -346,14 +354,36 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
         emitNode(self, code, tNode->arg1);
 
         size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
-        Compiler_patchJump(self, code, patch0, code->instructions.length);
+        Compiler_patchJumpToCurrent(self, code, patch0);
 
         if(tNode->arg2 == NULL) {
           emitInstruction(code, node->line, OP_NIL);
         } else {
           emitNode(self, code, tNode->arg2);
         }
-        Compiler_patchJump(self, code, patch1, code->instructions.length);
+        Compiler_patchJumpToCurrent(self, code, patch1);
+        return result;
+      }
+
+    case NODE_WHILE:
+      {
+        BinaryNode* bNode = (BinaryNode*)node;
+        size_t result = emitNode(self, code, bNode->arg0);
+        size_t patch0 = emitJump(self, code, node->line, OP_JUMP_IF_FALSE);
+
+        emitNode(self, code, bNode->arg1);
+
+        /*
+         * Jump back to the beginning of the loop.
+         */
+        /*
+         * TODO Add a function so that we don't have to patch the jump when
+         * we already know where we're jumping to.
+         */
+        size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
+        Compiler_patchJump(self, code, patch1, result);
+
+        Compiler_patchJumpToCurrent(self, code, patch0);
         return result;
       }
 
