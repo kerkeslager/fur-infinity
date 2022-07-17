@@ -146,16 +146,16 @@ typedef struct {
   bool isAtom; // Smallest item last for struct packing
 } PrecedenceRule;
 
-Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower);
+Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower);
 
 Node* parseIf(Scanner* scanner, size_t line) {
   // TODO Can we set a precedence that ensures this is a boolean?
-  Node* test = parseInternal(scanner, PREC_ANY);
+  Node* test = parseExpression(scanner, PREC_ANY);
 
   Token token = Scanner_scan(scanner);
   assert(token.type == TOKEN_COLON);
 
-  Node* leftBranch = parseInternal(scanner, PREC_ANY);
+  Node* leftBranch = parseExpression(scanner, PREC_ANY);
 
   Node* rightBranch = NULL;
 
@@ -163,7 +163,7 @@ Node* parseIf(Scanner* scanner, size_t line) {
   assert(token.type == TOKEN_ELSE || token.type == TOKEN_END);
 
   if(token.type == TOKEN_ELSE) {
-    rightBranch = parseInternal(scanner, PREC_ANY);
+    rightBranch = parseExpression(scanner, PREC_ANY);
     token = Scanner_scan(scanner);
   }
 
@@ -174,12 +174,12 @@ Node* parseIf(Scanner* scanner, size_t line) {
 
 Node* parseWhile(Scanner* scanner, size_t line) {
   // TODO Can we set a precedence that ensures this is a boolean?
-  Node* test = parseInternal(scanner, PREC_ANY);
+  Node* test = parseExpression(scanner, PREC_ANY);
 
   Token token = Scanner_scan(scanner);
   assert(token.type == TOKEN_COLON);
 
-  Node* body = parseInternal(scanner, PREC_ANY);
+  Node* body = parseExpression(scanner, PREC_ANY);
 
   token = Scanner_scan(scanner);
   assert(token.type == TOKEN_END);
@@ -215,7 +215,7 @@ const static PrecedenceRule PRECEDENCE_TABLE[] = {
   [TOKEN_CLOSE_PAREN] = { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
 };
 
-Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
+Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
   /*
    * This function is the core of the Pratt algorithm.
    *
@@ -233,14 +233,14 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
   } else if(token.type == TOKEN_IF) {
     return parseIf(scanner, token.line);
   } else if(token.type == TOKEN_OPEN_PAREN) {
-    leftOperand = parseInternal(scanner, PREC_ANY);
+    leftOperand = parseExpression(scanner, PREC_ANY);
     token = Scanner_scan(scanner);
     // TODO Handle this
     assert(token.type == TOKEN_CLOSE_PAREN);
   } else if(token.type == TOKEN_WHILE) {
     return parseWhile(scanner, token.line);
   } else if(PRECEDENCE_TABLE[token.type].prefix > PREC_NONE) {
-    Node* prefixOperand = parseInternal(
+    Node* prefixOperand = parseExpression(
       scanner,
       PRECEDENCE_TABLE[token.type].prefix
     );
@@ -279,7 +279,7 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
 
     Scanner_scan(scanner);
 
-    Node* rightOperand = parseInternal(scanner, PRECEDENCE_TABLE[operator.type].infixRight);
+    Node* rightOperand = parseExpression(scanner, PRECEDENCE_TABLE[operator.type].infixRight);
 
     NodeType infixOperatorType;
 
@@ -370,5 +370,5 @@ void Node_free(Node* self) {
 }
 
 Node* parse(Scanner* scanner) {
-  return parseInternal(scanner, PREC_ANY);
+  return parseExpression(scanner, PREC_ANY);
 }
