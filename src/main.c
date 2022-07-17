@@ -204,6 +204,7 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
     INCREMENT_LINE();
     #undef INCREMENT_LINE
 
+    size_t instructionIndex = i;
     size_t line = code->lineRuns.items[lineRunIndex].line;
 
     switch(code->instructions.items[i]) {
@@ -260,7 +261,7 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
 
       JUMP(OP_JUMP, jump);
       JUMP(OP_JUMP_IF_TRUE, jump_if_true);
-      JUMP(OP_JUMP_IF_FALSE, jump_if_False);
+      JUMP(OP_JUMP_IF_FALSE, jump_if_false);
       JUMP(OP_AND, and_jump);
       JUMP(OP_OR, or_jump);
       #undef JUMP
@@ -294,7 +295,7 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
         assert(false);
     }
 
-    printf("%-20s %-5s ; %zu\n", opString, argString, line);
+    printf("%-20s %-5s; inst: %zu, line:%zu\n", opString, argString, instructionIndex, line);
   }
 }
 

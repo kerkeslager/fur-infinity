@@ -256,7 +256,7 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
 
       case OP_INTEGER:
         {
-          assert(index + 3 < code->instructions.length);
+          assert(index + sizeof(int32_t) <= code->instructions.length);
           Stack_push(
               &(self->stack),
               Value_fromInt32(Code_getInt32(code, index))
@@ -307,12 +307,88 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
 
       #undef BINARY_OP
 
+      case OP_JUMP:
+        {
+          int16_t jump = Code_getInt16(code, index);
+          index += jump;
+          assert(index <= code->instructions.length);
+        } break;
+
+      case OP_JUMP_IF_TRUE:
+        {
+          Value v = Stack_pop(&(self->stack));
+
+          assert(v.is_a == TYPE_TRUE || v.is_a == TYPE_FALSE);
+
+          if(v.is_a == TYPE_TRUE) {
+            int16_t jump = Code_getInt16(code, index);
+            index += jump;
+          } else {
+            // Step over the space that contains the jump target
+            index += sizeof(int16_t);
+          }
+
+          assert(index <= code->instructions.length);
+        } break;
+
+      case OP_JUMP_IF_FALSE:
+        {
+          Value v = Stack_pop(&(self->stack));
+
+          assert(v.is_a == TYPE_TRUE || v.is_a == TYPE_FALSE);
+
+          if(v.is_a == TYPE_FALSE) {
+            int16_t jump = Code_getInt16(code, index);
+            index += jump;
+          } else {
+            // Step over the space that contains the jump target
+            index += sizeof(int16_t);
+          }
+
+          assert(index <= code->instructions.length);
+        } break;
+
       /*
-       * OP_AND and OP_OR are a bit complicated.
+       * OP_AND and OP_OR are a bit complicated. They're actually
+       * similar to OP_JUMP_IF_FALSE and OP_JUMP_IF_TRUE, respectively.
+       * The way they differ is in how they treat the stack.
        *
-       * They peek at the top of the stack. If they find the value they
-       * jump on, they *leave the value on the stack* and jump. If not,
-       * they *drop the value from the stack* and continue on.
+       * OP_JUMP_IF_TRUE and OP_JUMP_IF_FALSE pop a value off the stack,
+       * which is what you want when implementing if statements and loops.
+       * If you left the tested item on the stack, you'd end up having to
+       * emit an instruction at the beginning of each branch that drops
+       * the exessive value.
+       *
+       * However, `and` and `or` expressions return a value, which in Fur's
+       * VM means their overall effect is to add an item to the stack.
+       * They also test their left subexpression's result to determine
+       * whether to jump past the right subexpression (short-circuiting).
+       * Implementing this with OP_JUMP_IF_TRUE and OP_JUMP_IF_FALSE would
+       * mean that we have to duplicate the result of the left subexpression,
+       * so that the test doesn't lose it in the case that we jump. But then
+       * we would have to drop the item we just duplicated in the case
+       * that we *don't* jump.
+       *
+       * The traditional solution to this problem is to just have the
+       * conditional jump instructions *peek* at the stack rather than
+       * pop from it, and only pop when we decided to not branch. This
+       * saves an instruction on average for `and` and `or` statements,
+       * but for `if` statements and loops, it requires that we emit an
+       * instruction to drop the top item of the stack for every branch or
+       * iteration.
+       *
+       * Put another way, the first solution adds items to the stack we
+       * might not need, and the second solution leaves items on the stack
+       * which we might not need.
+       *
+       * OP_AND and OP_OR know whether we need the item they are testing
+       * and act accordingly. Initially, they peek at the top of the stack
+       * without changing it. If they top item is the value they jump
+       * on, they *leave the value on the stack* and jump. If not, they
+       * *drop the value from the stack* and continue on without jumping.
+       *
+       * At this time, this eliminates the need for OP_POP, OP_DROP, or
+       * OP_DUP instructions.
        */
       case OP_AND:
         {
@@ -328,7 +404,13 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
             index += sizeof(int16_t);
             Stack_pop(&(self->stack));
           }
+
+          assert(index <= code->instructions.length);
         } break;
+
+      /*
+       * See comment above OP_AND
+       */
       case OP_OR:
         {
           Value v = Stack_peek(&(self->stack));
@@ -343,6 +425,8 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
             index += sizeof(int16_t);
             Stack_pop(&(self->stack));
           }
+
+          assert(index <= code->instructions.length);
         } break;
 
       /*

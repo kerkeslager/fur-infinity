@@ -65,6 +65,33 @@ inline static size_t emitByte(Code* code, size_t line, uint8_t byte) {
   return Code_append(code, byte, line);
 }
 
+inline static size_t emitInstruction(Code* code, size_t line, Instruction i) {
+  /*
+   * This function basically exists to have this assertion.
+   *
+   * We want to catch if we add too many instructions so that we no longer
+   * can fit them all in a uint8_t, which is the basis of our bytecode
+   * structure. We're just casting Instruction into uint8_t, so this could
+   * cause us mysterious bugs. But we also don't want to add assertions or
+   * whatnot everywhere.
+   *
+   * In most mainstream compilers, the enum Instruction is emitted as a
+   * 4-byte integer regardless of how many possible values there are.
+   * So we can't just test sizeof(Instruction) <= sizeof(uint8_t), which
+   * is what we really want to assert.
+   *
+   * Instead, if we use this function ubiquitously, we'll get this assertion
+   * when we emit the first instruction that goes over the 1-byte limit.
+   *
+   * We're wrapping emitByte and keeping it around for the case where
+   * we are actually pushing in a uint8_t, not an Instruction that needs
+   * to be cast.
+   */
+  assert(i <= UINT8_MAX);
+
+  return emitByte(code, line, (uint8_t)i);
+}
+
 inline static uint8_t emitString(Code* code, AtomNode* node) {
   char* characters = malloc(node->length - 1);
   assert(characters != NULL);
@@ -155,7 +182,7 @@ inline static void emitInteger(Code* code, size_t line, int32_t integer) {
 }
 
 size_t emitJump(Compiler* self, Code* code, size_t line, Instruction inst) {
-  emitByte(code, line, (uint8_t)inst);
+  emitInstruction(code, line, inst);
 
   assert(sizeof(uint8_t) * 2 == sizeof(int16_t));
 
@@ -318,16 +345,16 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
         size_t patch0 = emitJump(self, code, node->line, OP_JUMP_IF_FALSE);
         emitNode(self, code, tNode->arg1);
 
+        size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
+        Compiler_patchJump(self, code, patch0, code->instructions.length);
+
         if(tNode->arg2 == NULL) {
-          Compiler_patchJump(self, code, patch0, code->instructions.length);
-          return result;
+          emitInstruction(code, node->line, OP_NIL);
         } else {
-          size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
           emitNode(self, code, tNode->arg2);
-          Compiler_patchJump(self, code, patch0, code->instructions.length);
-          Compiler_patchJump(self, code, patch1, code->instructions.length);
-          return result;
         }
+        Compiler_patchJump(self, code, patch1, code->instructions.length);
+        return result;
       }
 
     case NODE_ASSIGN:
