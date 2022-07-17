@@ -172,6 +172,21 @@ Node* parseIf(Scanner* scanner, size_t line) {
   return makeTernaryNode(NODE_IF, line, test, leftBranch, rightBranch);
 }
 
+Node* parseWhile(Scanner* scanner, size_t line) {
+  // TODO Can we set a precedence that ensures this is a boolean?
+  Node* test = parseInternal(scanner, PREC_ANY);
+
+  Token token = Scanner_scan(scanner);
+  assert(token.type == TOKEN_COLON);
+
+  Node* body = parseInternal(scanner, PREC_ANY);
+
+  token = Scanner_scan(scanner);
+  assert(token.type == TOKEN_END);
+
+  return makeBinaryNode(NODE_WHILE, line, test, body);
+}
+
 const static PrecedenceRule PRECEDENCE_TABLE[] = {
 // TokenType              Prefix,     InfixLeft,        InfixRight,         Postfix,    isAtom
   [TOKEN_NIL] =         { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
@@ -222,6 +237,8 @@ Node* parseInternal(Scanner* scanner, Precedence minimumBindingPower) {
     token = Scanner_scan(scanner);
     // TODO Handle this
     assert(token.type == TOKEN_CLOSE_PAREN);
+  } else if(token.type == TOKEN_WHILE) {
+    return parseWhile(scanner, token.line);
   } else if(PRECEDENCE_TABLE[token.type].prefix > PREC_NONE) {
     Node* prefixOperand = parseInternal(
       scanner,
@@ -323,6 +340,7 @@ void Node_free(Node* self) {
     case NODE_AND:
     case NODE_OR:
     case NODE_ASSIGN:
+    case NODE_WHILE:
       Node_free(((BinaryNode*)self)->arg1);
       // Don't break, cascade to further cleanup
 

@@ -33,6 +33,7 @@ typedef enum {
   NODE_AND,
   NODE_OR,
   NODE_ASSIGN,
+  NODE_WHILE,
 
   // Ternary nodes
   NODE_IF,

@@ -319,6 +319,13 @@ static Token Scanner_scanInternal(Scanner* self) {
         return Scanner_scanKeyword(self, start, "rue", TOKEN_TRUE);
       }
 
+    case 'w':
+      {
+        char* start = self->current;
+        self->current++;
+        return Scanner_scanKeyword(self, start, "hile", TOKEN_WHILE);
+      }
+
     case 'b':
     case 'c':
     case 'd':
@@ -334,7 +341,6 @@ static Token Scanner_scanInternal(Scanner* self) {
     case 's':
     case 'u':
     case 'v':
-    case 'w':
     case 'x':
     case 'y':
     case 'z':

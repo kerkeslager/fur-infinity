@@ -55,6 +55,7 @@ const char* tokenTypeAsString(TokenType type) {
       MAP(TOKEN_IF);
       MAP(TOKEN_ELSE);
       MAP(TOKEN_END);
+      MAP(TOKEN_WHILE);
 
       MAP(TOKEN_ERROR);
       MAP(TOKEN_EOF);
@@ -168,6 +169,7 @@ static void printNode(Node* node) {
     MAP_INFIX(NODE_AND, and);
     MAP_INFIX(NODE_OR, or);
     MAP_INFIX(NODE_PROPERTY, .);
+    MAP_INFIX(NODE_WHILE, while);
     #undef MAP_INFIX
 
     case NODE_IF:

@@ -219,7 +219,7 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
     index++;
 
     /*
-     * TODO Eventually we will only want this if some sort of debu flag is
+     * TODO Eventually we will only want this if some sort of debug flag is
      * passed to the compiler. But right now the only people running this code
      * are debugging it.
      */
@@ -357,7 +357,7 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
        * which is what you want when implementing if statements and loops.
        * If you left the tested item on the stack, you'd end up having to
        * emit an instruction at the beginning of each branch that drops
-       * the exessive value.
+       * the excess value.
        *
        * However, `and` and `or` expressions return a value, which in Fur's
        * VM means their overall effect is to add an item to the stack.
