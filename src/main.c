@@ -24,48 +24,6 @@ typedef struct {
   Action action;
 } Options;
 
-const char* tokenTypeAsString(TokenType type) {
-    switch(type) {
-      #define MAP(token) case token: return #token;
-      MAP(TOKEN_NIL);
-      MAP(TOKEN_TRUE);
-      MAP(TOKEN_FALSE);
-      MAP(TOKEN_DEF);
-      MAP(TOKEN_NOT);
-      MAP(TOKEN_IDENTIFIER);
-      MAP(TOKEN_NUMBER);
-      MAP(TOKEN_SQSTR);
-      MAP(TOKEN_DQSTR);
-      MAP(TOKEN_DOT);
-      MAP(TOKEN_PLUS);
-      MAP(TOKEN_MINUS);
-      MAP(TOKEN_STAR);
-      MAP(TOKEN_SLASH);
-      MAP(TOKEN_COLON);
-      MAP(TOKEN_OPEN_PAREN);
-      MAP(TOKEN_CLOSE_PAREN);
-      MAP(TOKEN_EQ);
-      MAP(TOKEN_NEQ);
-      MAP(TOKEN_GEQ);
-      MAP(TOKEN_LEQ);
-      MAP(TOKEN_GT);
-      MAP(TOKEN_LT);
-      MAP(TOKEN_AND);
-      MAP(TOKEN_OR);
-      MAP(TOKEN_ASSIGN);
-      MAP(TOKEN_IF);
-      MAP(TOKEN_ELSE);
-      MAP(TOKEN_END);
-      MAP(TOKEN_WHILE);
-
-      MAP(TOKEN_ERROR);
-      MAP(TOKEN_EOF);
-      #undef MAP
-
-      default: return NULL;
-    }
-}
-
 void printScan(Scanner* scanner) {
   Token token;
 
@@ -82,7 +40,7 @@ void printScan(Scanner* scanner) {
       printf("%4zu ", token.line);
     }
 
-    const char* tokenTypeString = tokenTypeAsString(token.type);
+    const char* tokenTypeString = TokenType_asString(token.type);
     assert(tokenTypeString != NULL);
     printf("%-19s", tokenTypeString);
 

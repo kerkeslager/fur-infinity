@@ -47,6 +47,8 @@ typedef enum {
   TOKEN_EOF,
 } TokenType;
 
+const char* TokenType_asString(TokenType type);
+
 typedef struct {
   TokenType type;
   char* text;
