@@ -153,6 +153,80 @@ typedef struct {
 Node* parseExpression(Scanner*, Precedence minimumBindingPower);
 Node* parseExpressionList(Scanner*, uint8_t, TokenType*);
 
+static void ExpressionListNode_init(ExpressionListNode* self) {
+  self->length = 0;
+  self->capacity = 0;
+  self->items = 0;
+}
+
+static void ExpressionListNode_append(ExpressionListNode* self, Node* item) {
+  /*
+   * TODO Combine this with other dynamic arrays.
+   */
+  if(self->length == self->capacity) {
+    if(self->capacity == 0) {
+      self->capacity = 8;
+    } else {
+      self->capacity = self->capacity * 2;
+    }
+
+    self->items = realloc(self->items, sizeof(Node*) * self->capacity);
+
+    assert(self->items != NULL); // TODO Handle this
+  }
+
+  self->items[self->length] = item;
+  self->length++;
+}
+
+static void ExpressionListNode_snug(ExpressionListNode* self) {
+  /*
+   * If we know that we won't be adding any more items to a dynamic array,
+   * we can free the excess space we have allocated.
+   */
+
+  if(self->capacity > self->length) {
+    self->capacity = self->length;
+    self->items = realloc(self->items, self->capacity * sizeof(Node*));
+    assert(self->items != NULL); // TODO Handle this
+  }
+}
+
+static Node* parseCall(Scanner* scanner, size_t line) {
+  Token start = Scanner_scan(scanner);
+  assert(start.type == TOKEN_OPEN_PAREN);
+
+  ExpressionListNode* elNode = malloc(sizeof(ExpressionListNode));
+
+  Node_init((Node*)elNode, NODE_COMMA_SEPARATED_LIST, line);
+  ExpressionListNode_init(elNode);
+
+  Token close = Scanner_peek(scanner);
+
+  // No arguments
+  if(close.type == TOKEN_CLOSE_PAREN) {
+    /*
+     * No need to call ExpressionListNode_snug because this is instantiated
+     * with a null items pointer.
+     */
+    return (Node*)elNode;
+  }
+
+  for(;;) {
+    Node* expr = parseExpression(scanner, PREC_ANY);
+    ExpressionListNode_append(elNode, expr);
+
+    close = Scanner_scan(scanner);
+
+    if(close.type == TOKEN_CLOSE_PAREN) {
+      ExpressionListNode_snug(elNode);
+      return (Node*)elNode;
+    } else {
+      assert(close.type == TOKEN_COMMA);
+    }
+  }
+}
+
 Node* parseIf(Scanner* scanner, size_t line) {
   // TODO Can we set a precedence that ensures this is a boolean?
   Node* test = parseExpression(scanner, PREC_ANY);
@@ -300,6 +374,18 @@ Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
     Token operator = Scanner_peek(scanner);
 
     switch(operator.type) {
+      case TOKEN_OPEN_PAREN:
+        {
+          Node* arguments = parseCall(scanner, leftOperand->line);
+          BinaryNode* call = malloc(sizeof(BinaryNode));
+          Node_init((Node*)call, NODE_CALL, leftOperand->line);
+
+          call->arg0 = leftOperand;
+          call->arg1 = arguments;
+          leftOperand = (Node*)call;
+
+          continue;
+        }
       case TOKEN_ELSE:
       case TOKEN_END:
       case TOKEN_EOF:
@@ -363,20 +449,21 @@ void Node_free(Node* self) {
       // Don't break, cascade to further cleanup
 
     // Binary nodes
-    case NODE_PROPERTY:
     case NODE_ADD:
-    case NODE_SUBTRACT:
-    case NODE_MULTIPLY:
+    case NODE_AND:
+    case NODE_ASSIGN:
+    case NODE_CALL:
     case NODE_DIVIDE:
     case NODE_EQUALS:
-    case NODE_NOT_EQUALS:
-    case NODE_GREATER_THAN_EQUALS:
-    case NODE_LESS_THAN_EQUALS:
     case NODE_GREATER_THAN:
+    case NODE_GREATER_THAN_EQUALS:
     case NODE_LESS_THAN:
-    case NODE_AND:
+    case NODE_LESS_THAN_EQUALS:
+    case NODE_MULTIPLY:
+    case NODE_NOT_EQUALS:
     case NODE_OR:
-    case NODE_ASSIGN:
+    case NODE_PROPERTY:
+    case NODE_SUBTRACT:
     case NODE_WHILE:
       Node_free(((BinaryNode*)self)->arg1);
       // Don't break, cascade to further cleanup
@@ -388,17 +475,18 @@ void Node_free(Node* self) {
       // Don't break, cascade to further cleanup
 
     // Atom nodes
-    case NODE_NIL:
-    case NODE_TRUE:
     case NODE_FALSE:
     case NODE_IDENTIFIER:
+    case NODE_NIL:
     case NODE_NUMBER:
     case NODE_STRING:
+    case NODE_TRUE:
       // Note that we don't clean up the text associated with atom nodes
       // This is because it contains pointers to source, which we will clean up once
       // the parse is done and code generated.
       break;
 
+    case NODE_COMMA_SEPARATED_LIST:
     case NODE_EXPRESSION_LIST:
       {
         ExpressionListNode* el = (ExpressionListNode*)self;
@@ -416,33 +504,11 @@ void Node_free(Node* self) {
   free(self);
 }
 
-static void ExpressionListNode_init(ExpressionListNode* self) {
-  self->length = 0;
-  self->capacity = 0;
-  self->items = 0;
-}
-
-static void ExpressionListNode_append(ExpressionListNode* self, Node* item) {
-  /*
-   * TODO Combine this with other dynamic arrays.
-   */
-  if(self->length == self->capacity) {
-    if(self->capacity == 0) {
-      self->capacity = 8;
-    } else {
-      self->capacity = self->capacity * 2;
-    }
-
-    self->items = realloc(self->items, sizeof(Node*) * self->capacity);
-
-    assert(self->items != NULL); // TODO Handle this
-  }
-
-  self->items[self->length] = item;
-  self->length++;
-}
-
 Node* parseExpressionList(Scanner* scanner, uint8_t expectedExitCount, TokenType* expectedExits) {
+  /*
+   * TODO Don't return an ExpressionList if it would contain only one
+   * node. Instead just return the one node.
+   */
   ExpressionListNode* node = malloc(sizeof(ExpressionListNode));
   ExpressionListNode_init(node);
 
@@ -456,6 +522,7 @@ Node* parseExpressionList(Scanner* scanner, uint8_t expectedExitCount, TokenType
       case TOKEN_EOF:
         for(uint8_t i = 0; i < expectedExitCount; i++) {
           if(token.type == expectedExits[i]) {
+            ExpressionListNode_snug(node);
             return (Node*)node;
           }
         }

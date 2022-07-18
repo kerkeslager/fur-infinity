@@ -37,6 +37,7 @@ const char* TokenType_asString(TokenType type) {
       MAP(TOKEN_ELSE);
       MAP(TOKEN_END);
       MAP(TOKEN_WHILE);
+      MAP(TOKEN_COMMA);
 
       MAP(TOKEN_ERROR);
       MAP(TOKEN_EOF);
@@ -462,6 +463,7 @@ static Token Scanner_scanInternal(Scanner* self) {
     ONE_CHAR_TOKEN('(', TOKEN_OPEN_PAREN);
     ONE_CHAR_TOKEN(')', TOKEN_CLOSE_PAREN);
     ONE_CHAR_TOKEN('.', TOKEN_DOT);
+    ONE_CHAR_TOKEN(',', TOKEN_COMMA);
     ONE_CHAR_TOKEN(':', TOKEN_COLON);
     #undef ONE_CHAR_TOKEN
 

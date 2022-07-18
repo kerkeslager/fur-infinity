@@ -34,11 +34,13 @@ typedef enum {
   NODE_OR,
   NODE_ASSIGN,
   NODE_WHILE,
+  NODE_CALL,
 
   // Ternary nodes
   NODE_IF,
 
   // List nodes
+  NODE_COMMA_SEPARATED_LIST,
   NODE_EXPRESSION_LIST,
 
 } NodeType;

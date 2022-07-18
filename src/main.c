@@ -144,6 +144,27 @@ static void printNode(Node* node) {
         printf(")");
       } break;
 
+    case NODE_CALL:
+      {
+        BinaryNode* bNode = (BinaryNode*)node;
+
+        printf("(__call__ ");
+
+        printNode(bNode->arg0);
+
+        printf(" (");
+
+        ExpressionListNode* elNode = (ExpressionListNode*)(bNode->arg1);
+
+        for(size_t i = 0; i < elNode->length; i++) {
+          if(i > 0) printf(" ");
+
+          printNode(elNode->items[i]);
+        }
+
+        printf("))");
+      } break;
+
     default:
       assert(false);
   }
