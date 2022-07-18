@@ -257,6 +257,13 @@ static Token Scanner_scanInternal(Scanner* self) {
         return Scanner_scanKeyword(self, start, "nd", TOKEN_AND);
       }
 
+    case 'd':
+      {
+        char* start = self->current;
+        self->current++;
+        return Scanner_scanKeyword(self, start, "ef", TOKEN_DEF);
+      }
+
     case 'e':
       {
         char* start = self->current;
@@ -328,7 +335,6 @@ static Token Scanner_scanInternal(Scanner* self) {
 
     case 'b':
     case 'c':
-    case 'd':
     case 'g':
     case 'h':
     case 'j':

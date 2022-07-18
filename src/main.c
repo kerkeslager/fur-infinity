@@ -30,6 +30,7 @@ const char* tokenTypeAsString(TokenType type) {
       MAP(TOKEN_NIL);
       MAP(TOKEN_TRUE);
       MAP(TOKEN_FALSE);
+      MAP(TOKEN_DEF);
       MAP(TOKEN_NOT);
       MAP(TOKEN_IDENTIFIER);
       MAP(TOKEN_NUMBER);
@@ -73,7 +74,6 @@ void printScan(Scanner* scanner) {
   printf("Line Type               Text\n");
 
   while((token = Scanner_scan(scanner)).type != TOKEN_EOF) {
-    const char* tokenTypeString = tokenTypeAsString(token.type);
 
     if(token.line == previousLine) {
       printf("   | ");
@@ -82,11 +82,9 @@ void printScan(Scanner* scanner) {
       printf("%4zu ", token.line);
     }
 
-    if(tokenTypeString == NULL) {
-      printf("<unknown>          ");
-    } else {
-      printf("%-19s", tokenTypeAsString(token.type));
-    }
+    const char* tokenTypeString = tokenTypeAsString(token.type);
+    assert(tokenTypeString != NULL);
+    printf("%-19s", tokenTypeString);
 
     printf( "\"%.*s\"\n", (int)token.length, token.text);
   }

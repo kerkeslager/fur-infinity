@@ -13,6 +13,7 @@ typedef enum {
   TOKEN_SQSTR,
   TOKEN_DQSTR,
 
+  TOKEN_DEF,
   TOKEN_DOT,
 
   TOKEN_PLUS,
