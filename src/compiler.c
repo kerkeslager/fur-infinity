@@ -495,7 +495,51 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
          * if we don't have to emit this NIL, our declaration is an
          * extremely satisfying total of 0 instructions at runtime.
          */
-        emitByte(code, node->line, (uint8_t)OP_NIL);
+        emitInstruction(code, node->line, OP_NIL);
+        return result;
+      }
+
+    case NODE_EXPRESSION_LIST:
+      {
+        ExpressionListNode* elNode = (ExpressionListNode*)node;
+
+        if(elNode->length == 0) {
+          return emitInstruction(code, node->line, OP_NIL);
+        }
+
+        /*
+         * Emit the first node outside the loop, so we can record
+         * where it is.
+         */
+        size_t result = emitNode(self, code, elNode->items[0]);
+
+        for(size_t i = 1; i < elNode->length; i++) {
+          /*
+           * This drops the result of all but the last item, so that
+           * only the result of the last item is left on the stack once
+           * the expression is done.
+           */
+          /*
+           * TODO Pass an `asStatement` bool into emitNode. If true,
+           * make sure the stack effect of emitted code is 0, by dropping
+           * values from the stack if necessary, but ideally, by not emitting
+           * extra bytes in the first place. This way we wouldn't have to
+           * emit a drop after every expression (except the last, because
+           * we're an expression too!).
+           *
+           * Conversely, if `asStatement` is
+           * false, make sure the stack effect of emitted code is +1, by
+           * pushing nils if necessary, because we're treating it as an
+           * expression.
+           *
+           * TODO While we're at it, we should probably admit that nodes are
+           * expresions, and rename Node and emitNode accordingly.
+           */
+          emitInstruction(code, node->line, OP_DROP);
+
+          emitNode(self, code, elNode->items[i]);
+        }
+
         return result;
       }
 

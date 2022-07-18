@@ -16,10 +16,16 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+
+inline static void Node_init(Node* self, NodeType type, size_t line) {
+  self->type = type;
+  self->line = line;
+}
+
+
 static Node makeNode(NodeType type, size_t line) {
   Node result;
-  result.type = type;
-  result.line = line;
+  Node_init(&result, type, line);
   return result;
 }
 
@@ -142,11 +148,10 @@ typedef struct {
   Precedence prefix;
   Precedence infixLeft;
   Precedence infixRight;
-  Precedence postfix;
-  bool isAtom; // Smallest item last for struct packing
 } PrecedenceRule;
 
-Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower);
+Node* parseExpression(Scanner*, Precedence minimumBindingPower);
+Node* parseExpressionList(Scanner*, uint8_t, TokenType*);
 
 Node* parseIf(Scanner* scanner, size_t line) {
   // TODO Can we set a precedence that ensures this is a boolean?
@@ -155,7 +160,12 @@ Node* parseIf(Scanner* scanner, size_t line) {
   Token token = Scanner_scan(scanner);
   assert(token.type == TOKEN_COLON);
 
-  Node* leftBranch = parseExpression(scanner, PREC_ANY);
+  TokenType leftBranchExpectedExits[] = {
+    TOKEN_ELSE,
+    TOKEN_END
+  };
+
+  Node* leftBranch = parseExpressionList(scanner, 2, leftBranchExpectedExits);
 
   Node* rightBranch = NULL;
 
@@ -163,7 +173,10 @@ Node* parseIf(Scanner* scanner, size_t line) {
   assert(token.type == TOKEN_ELSE || token.type == TOKEN_END);
 
   if(token.type == TOKEN_ELSE) {
-    rightBranch = parseExpression(scanner, PREC_ANY);
+    TokenType rightBranchExpecteExit = TOKEN_END;
+
+    rightBranch = parseExpressionList(scanner, 1, &rightBranchExpecteExit);
+
     token = Scanner_scan(scanner);
   }
 
@@ -179,7 +192,9 @@ Node* parseWhile(Scanner* scanner, size_t line) {
   Token token = Scanner_scan(scanner);
   assert(token.type == TOKEN_COLON);
 
-  Node* body = parseExpression(scanner, PREC_ANY);
+  TokenType expectedExit = TOKEN_END;
+
+  Node* body = parseExpressionList(scanner, 1, &expectedExit);
 
   token = Scanner_scan(scanner);
   assert(token.type == TOKEN_END);
@@ -188,32 +203,50 @@ Node* parseWhile(Scanner* scanner, size_t line) {
 }
 
 const static PrecedenceRule PRECEDENCE_TABLE[] = {
-// TokenType              Prefix,     InfixLeft,        InfixRight,         Postfix,    isAtom
-  [TOKEN_NIL] =         { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
-  [TOKEN_TRUE] =        { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
-  [TOKEN_FALSE] =       { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
-  [TOKEN_IDENTIFIER] =  { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
-  [TOKEN_NUMBER] =      { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
-  [TOKEN_SQSTR] =       { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
-  [TOKEN_DQSTR] =       { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  true },
-  [TOKEN_ASSIGN] =      { PREC_NONE,  PREC_ASSIGN_LEFT, PREC_ASSIGN_RIGHT,  PREC_NONE,  false },
-  [TOKEN_OR] =          { PREC_NONE,  PREC_OR_LEFT,     PREC_OR_RIGHT,      PREC_NONE,  false },
-  [TOKEN_AND] =         { PREC_NONE,  PREC_AND_LEFT,    PREC_AND_RIGHT,     PREC_NONE,  false },
-  [TOKEN_EQ] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
-  [TOKEN_NEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
-  [TOKEN_LEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
-  [TOKEN_GEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
-  [TOKEN_LT] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
-  [TOKEN_GT] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT,     PREC_NONE,  false },
-  [TOKEN_PLUS] =        { PREC_NONE,  PREC_ADD_LEFT,    PREC_ADD_RIGHT,     PREC_NONE,  false },
-  [TOKEN_MINUS] =       { PREC_NEG,   PREC_ADD_LEFT,    PREC_ADD_RIGHT,     PREC_NONE,  false },
-  [TOKEN_NOT] =         { PREC_NOT,   PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
-  [TOKEN_STAR] =        { PREC_NONE,  PREC_MUL_LEFT,    PREC_MUL_RIGHT,     PREC_NONE,  false },
-  [TOKEN_SLASH] =       { PREC_NONE,  PREC_MUL_LEFT,    PREC_MUL_RIGHT,     PREC_NONE,  false },
-  [TOKEN_DOT] =         { PREC_NONE,  PREC_DOT_LEFT,    PREC_DOT_RIGHT,     PREC_NONE,  false },
-  [TOKEN_OPEN_PAREN] =  { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
-  [TOKEN_CLOSE_PAREN] = { PREC_NONE,  PREC_NONE,        PREC_NONE,          PREC_NONE,  false },
+// TokenType              Prefix,     InfixLeft,        InfixRight
+  [TOKEN_NIL] =         { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_TRUE] =        { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_FALSE] =       { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_IDENTIFIER] =  { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_NUMBER] =      { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_SQSTR] =       { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_DQSTR] =       { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_ASSIGN] =      { PREC_NONE,  PREC_ASSIGN_LEFT, PREC_ASSIGN_RIGHT },
+  [TOKEN_OR] =          { PREC_NONE,  PREC_OR_LEFT,     PREC_OR_RIGHT     },
+  [TOKEN_AND] =         { PREC_NONE,  PREC_AND_LEFT,    PREC_AND_RIGHT    },
+  [TOKEN_EQ] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT    },
+  [TOKEN_NEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT    },
+  [TOKEN_LEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT    },
+  [TOKEN_GEQ] =         { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT    },
+  [TOKEN_LT] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT    },
+  [TOKEN_GT] =          { PREC_NONE,  PREC_CMP_LEFT,    PREC_CMP_RIGHT    },
+  [TOKEN_PLUS] =        { PREC_NONE,  PREC_ADD_LEFT,    PREC_ADD_RIGHT    },
+  [TOKEN_MINUS] =       { PREC_NEG,   PREC_ADD_LEFT,    PREC_ADD_RIGHT    },
+  [TOKEN_NOT] =         { PREC_NOT,   PREC_NONE,        PREC_NONE         },
+  [TOKEN_STAR] =        { PREC_NONE,  PREC_MUL_LEFT,    PREC_MUL_RIGHT    },
+  [TOKEN_SLASH] =       { PREC_NONE,  PREC_MUL_LEFT,    PREC_MUL_RIGHT    },
+  [TOKEN_DOT] =         { PREC_NONE,  PREC_DOT_LEFT,    PREC_DOT_RIGHT    },
+  [TOKEN_OPEN_PAREN] =  { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_CLOSE_PAREN] = { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_IF] =          { PREC_NONE,  PREC_NONE,        PREC_NONE         },
+  [TOKEN_WHILE] =       { PREC_NONE,  PREC_NONE,        PREC_NONE         },
 };
+
+inline static bool isAtom(TokenType t) {
+  switch(t) {
+    case TOKEN_NIL:
+    case TOKEN_TRUE:
+    case TOKEN_FALSE:
+    case TOKEN_IDENTIFIER:
+    case TOKEN_NUMBER:
+    case TOKEN_SQSTR:
+    case TOKEN_DQSTR:
+      return true;
+
+    default:
+      return false;
+  }
+}
 
 Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
   /*
@@ -228,7 +261,7 @@ Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
 
   if(token.type == TOKEN_EOF) {
     return NULL;
-  } else if(PRECEDENCE_TABLE[token.type].isAtom) {
+  } else if(isAtom(token.type)) {
     leftOperand = makeAtomNode(token);
   } else if(token.type == TOKEN_IF) {
     return parseIf(scanner, token.line);
@@ -249,6 +282,10 @@ Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
     assert(prefixOperand != NULL);
 
     leftOperand = makeUnaryNode(token, prefixOperand);
+  }
+
+  if(leftOperand == NULL) {
+    printf("TokenType: %s\n", TokenType_asString(token.type));
   }
 
   assert(leftOperand != NULL);
@@ -362,6 +399,16 @@ void Node_free(Node* self) {
       // the parse is done and code generated.
       break;
 
+    case NODE_EXPRESSION_LIST:
+      {
+        ExpressionListNode* el = (ExpressionListNode*)self;
+
+        for(size_t i = 0; i < el->length; i++) {
+          Node_free(el->items[i]);
+        }
+        free(el->items);
+      } break;
+
     default:
       assert(false);
   }
@@ -369,6 +416,60 @@ void Node_free(Node* self) {
   free(self);
 }
 
+static void ExpressionListNode_init(ExpressionListNode* self) {
+  self->length = 0;
+  self->capacity = 0;
+  self->items = 0;
+}
+
+static void ExpressionListNode_append(ExpressionListNode* self, Node* item) {
+  /*
+   * TODO Combine this with other dynamic arrays.
+   */
+  if(self->length == self->capacity) {
+    if(self->capacity == 0) {
+      self->capacity = 8;
+    } else {
+      self->capacity = self->capacity * 2;
+    }
+
+    self->items = realloc(self->items, sizeof(Node*) * self->capacity);
+
+    assert(self->items != NULL); // TODO Handle this
+  }
+
+  self->items[self->length] = item;
+  self->length++;
+}
+
+Node* parseExpressionList(Scanner* scanner, uint8_t expectedExitCount, TokenType* expectedExits) {
+  ExpressionListNode* node = malloc(sizeof(ExpressionListNode));
+  ExpressionListNode_init(node);
+
+  Token token = Scanner_peek(scanner);
+  Node_init((Node*)node, NODE_EXPRESSION_LIST, token.line);
+
+  for(;;) {
+    switch(token.type) {
+      case TOKEN_ELSE:
+      case TOKEN_END:
+      case TOKEN_EOF:
+        for(uint8_t i = 0; i < expectedExitCount; i++) {
+          if(token.type == expectedExits[i]) {
+            return (Node*)node;
+          }
+        }
+        assert(false);
+
+      default:
+        ExpressionListNode_append(node, parseExpression(scanner, PREC_ANY));
+        token = Scanner_peek(scanner);
+    }
+  }
+}
+
 Node* parse(Scanner* scanner) {
-  return parseExpression(scanner, PREC_ANY);
+  TokenType exit = TOKEN_EOF;
+
+  return parseExpressionList(scanner, 1, &exit);
 }

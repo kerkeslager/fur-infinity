@@ -38,6 +38,9 @@ typedef enum {
   // Ternary nodes
   NODE_IF,
 
+  // List nodes
+  NODE_EXPRESSION_LIST,
+
 } NodeType;
 
 typedef struct {
@@ -70,6 +73,13 @@ typedef struct {
   Node* arg1;
   Node* arg2;
 } TernaryNode;
+
+typedef struct {
+  Node node;
+  size_t length;
+  size_t capacity;
+  Node** items;
+} ExpressionListNode;
 
 /*
  * TODO It might be even better to just pass in source, and also hide

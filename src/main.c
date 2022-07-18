@@ -132,6 +132,18 @@ static void printNode(Node* node) {
       printTernaryNode("if", (TernaryNode*)node);
       break;
 
+    case NODE_EXPRESSION_LIST:
+      {
+        ExpressionListNode* elNode = (ExpressionListNode*)node;
+
+        printf("(do");
+        for(size_t i = 0; i < elNode->length; i++) {
+          printf(" ");
+          printNode(elNode->items[i]);
+        }
+        printf(")");
+      } break;
+
     default:
       assert(false);
   }
