@@ -211,6 +211,10 @@ inline static Value notEquals(Value arg0, Value arg1) {
 
 size_t Thread_run(Thread* self, Code* code, size_t index) {
   for(;index < code->instructions.length;) {
+    /*
+     * TODO Profile different ways of putting index, instruction, and/or
+     * a pointer to the instruction in code into a register.
+     */
     uint8_t instruction = Code_get(code, index);
     /*
      * We increment the index *immediately* so we don't have to remember to
