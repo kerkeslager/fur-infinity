@@ -42,34 +42,81 @@ void ObjNative_printRepr(ObjNative* self) {
 }
 
 void ObjString_printRepr(ObjString* self) {
-  printf("\"");
+  /*
+   * Choose whether to use single or double quotes to quote the string
+   * representation, in a way that minimizes escapes. This isn't performant,
+   * but it makes it look nicer in a way that's still pastable into code,
+   * and since this is primarily a debugging tool, performance isn't a high
+   * priority.
+   */
+  size_t singeQuoteCount = 0;
+  size_t doubleQuoteCount = 0;
+
+  for(size_t i = 0; i < self->length; i++) {
+    switch(self->characters[i]) {
+      case '\'':
+        singeQuoteCount++;
+        break;
+      case '"':
+        doubleQuoteCount++;
+        break;
+    }
+  }
+
+  char quoteChar = '\'';
+
+  if(singeQuoteCount > doubleQuoteCount) {
+    quoteChar = '"';
+  }
+
+  printf("%c", quoteChar);
   for(size_t i = 0; i < self->length; i++) {
     // This is the *representation*, not the actual string
     // so we need to unescape characters
     switch(self->characters[i]) {
+      case '\'':
+        switch(quoteChar) {
+          case '\'':
+            printf("\\\'");
+            break;
+          case '"':
+            printf("'");
+            break;
+          default:
+            assert(false);
+        }
+        break;
+
+      case '\"':
+        switch(quoteChar) {
+          case '\'':
+            printf("\"");
+            break;
+          case '"':
+            printf("\\\"");
+            break;
+          default:
+            assert(false);
+        }
+        break;
+
       case '\\':
         printf("\\\\");
         break;
-      case '\'':
-        printf("\\\'");
-        break;
-      case '\"':
-        printf("\\\'");
-        break;
       case '\n':
-        printf("\\\'");
+        printf("\\\n");
         break;
       case '\r':
-        printf("\\\'");
+        printf("\\\r");
         break;
       case '\t':
-        printf("\\\'");
+        printf("\\\t");
         break;
       default:
         printf("%c", self->characters[i]);
     }
   }
-  printf("\"");
+  printf("%c", quoteChar);
 }
 
 void Obj_printRepr(Obj* self) {
