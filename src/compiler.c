@@ -220,17 +220,88 @@ void Compiler_patchJumpToCurrent(Compiler* self, Code* code, size_t jumpIndex) {
   Compiler_patchJump(self, code, jumpIndex, code->instructions.length);
 }
 
-static size_t emitNode(Compiler* self, Code* code, Node* node) {
+/*
+ * emitReturn tells us whether the node should return a value by placing the
+ * item on the stack. This allows us to perform an optimization.
+ *
+ * In Fur semantics, every statement is an expression, meaning that it returns a
+ * value by placing it on the stack. When compiling a function like this:
+ *
+ *     def foo():
+ *       <expression A>
+ *       <expression B>
+ *     end
+ *
+ * <expression A> returns a value, but that value is isn't used, and we can't
+ * leave it on the stack, * whereas <expression B returns a value which is
+ * then returned by calls to foo().
+ *
+ * From the persepective of the parent function, the easiest way to deal with
+ * this is to emit an OP_DROP after <expression A>, but there are many cases
+ * where that is inefficient. For example:
+ *
+ *     def foo():
+ *       a = 1
+ *       <expression B>
+ *     end
+ *
+ * The "expression" `a = 1` is actually more of a *statement*. If we're
+ * treating it as an expression, then it has to return a value (we do that by
+ * emitting a OP_NIL, when it's necessary). But if we use the naive
+ * implementation, this means we're emitting an OP_NIL followed by OP_DROP,
+ * which is obviously not ideal.
+ *
+ * Passing emitReturn=false to the function compiling `a = 1` lets the function
+ * know whether or not the return is going to be used. If it's not going to be
+ * used, we can just not emit the OP_NIL, but in cases where we *do* use the
+ * return value, we can pass in emitReturn=true. There are some cases where
+ * we will still need to emit an OP_DROP, for example this:
+ *
+ *     def foo():
+ *       bar()
+ *       <expression B>
+ *     end
+ *
+ * We can't necessarily prevent bar() from returning a value by placing it on
+ * the stack, because calls to bar() in other parts of the code might actually
+ * use the return value. So when we're compiling the expression `bar()`, we
+ * still have to emit an `OP_DROP` afterward if we receive emitReturn=false.
+ * But at least in cases where the expression doesn't have a natural return,
+ * we can avoid placing anything on the stack in the first place if it isn't
+ * going to be used.
+ */
+static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) {
   switch(node->type) {
     case NODE_NIL:
-      return emitByte(code, node->line, (uint8_t)OP_NIL);
+      if(emitReturn) {
+        return emitByte(code, node->line, (uint8_t)OP_NIL);
+      } else {
+        return Code_getCurrent(code);
+      }
+
     case NODE_TRUE:
-      return emitByte(code, node->line, (uint8_t)OP_TRUE);
+      if(emitReturn) {
+        return emitByte(code, node->line, (uint8_t)OP_TRUE);
+      } else {
+        return Code_getCurrent(code);
+      }
+
     case NODE_FALSE:
-      return emitByte(code, node->line, (uint8_t)OP_FALSE);
+      if(emitReturn) {
+        return emitByte(code, node->line, (uint8_t)OP_FALSE);
+      } else {
+        return Code_getCurrent(code);
+      }
 
     case NODE_IDENTIFIER:
       {
+        /*
+         * Currently, accessing an identifier does not have any side effects,
+         * so we can do this. However, special idenfitiers might change
+         * this in the future, so we need to be careful.
+         */
+        if(!emitReturn) return Code_getCurrent(code);
+
         /*
          * Similar to the NODE_ASSIGN, we have to look to see if the
          * *compiler* knows if the variable exists. If so, the location
@@ -299,6 +370,8 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
 
     case NODE_NUMBER:
       {
+        if(!emitReturn) return Code_getCurrent(code);
+
         int32_t number = 0;
         char* text = ((AtomNode*)node)->text;
         size_t length = ((AtomNode*)node)->length;
@@ -316,6 +389,8 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
 
     case NODE_STRING:
       {
+        if(!emitReturn) return Code_getCurrent(code);
+
         uint8_t index = emitString(code, (AtomNode*)node);
         size_t result = emitByte(code, node->line, (uint8_t)OP_STRING);
         emitByte(code, node->line, index);
@@ -324,8 +399,13 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
 
     #define UNARY_NODE(op) \
       do { \
-        size_t result = emitNode(self, code, ((UnaryNode*)node)->arg); \
-        emitByte(code, node->line, op); \
+        size_t result = emitNode( \
+            self, \
+            code, \
+            ((UnaryNode*)node)->arg, \
+            emitReturn \
+          ); \
+        if(emitReturn) emitByte(code, node->line, op); \
         return result; \
       } while(false)
     case NODE_NEGATE: UNARY_NODE(OP_NEGATE);
@@ -335,9 +415,14 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
     #define BINARY_NODE(type,op) \
     case type: \
       do { \
-        size_t result = emitNode(self, code, ((BinaryNode*)node)->arg0); \
-        emitNode(self, code, ((BinaryNode*)node)->arg1); \
-        emitByte(code, node->line, op); \
+        size_t result = emitNode( \
+            self, \
+            code, \
+            ((BinaryNode*)node)->arg0, \
+            emitReturn \
+          ); \
+        emitNode(self, code, ((BinaryNode*)node)->arg1, emitReturn); \
+        if(emitReturn) emitByte(code, node->line, op); \
         return result; \
       } while(false)
     BINARY_NODE(NODE_PROPERTY,            OP_PROP);
@@ -357,39 +442,62 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
     case NODE_AND:
       {
         BinaryNode* bNode = (BinaryNode*)node;
-        size_t result = emitNode(self, code, bNode->arg0);
+        size_t result = emitNode(self, code, bNode->arg0, true);
         size_t toPatch = emitJump(self, code, node->line, OP_AND);
-        emitNode(self, code, bNode->arg1);
+        emitNode(self, code, bNode->arg1, true);
 
         Compiler_patchJumpToCurrent(self, code, toPatch);
+
+        /*
+         * TODO It isn't obvious how to short circuit, respect potential
+         * side effects, and not emit this instruction. This probably isn't
+         * a high priority optimizatin, however, since this isn't the
+         * usual case.
+         */
+        if(!emitReturn) emitInstruction(code, node->line, OP_DROP);
+
         return result;
       }
 
     case NODE_OR:
       {
         BinaryNode* bNode = (BinaryNode*)node;
-        size_t result = emitNode(self, code, bNode->arg0);
+        size_t result = emitNode(self, code, bNode->arg0, true);
         size_t toPatch = emitJump(self, code, node->line, OP_OR);
-        emitNode(self, code, bNode->arg1);
+        emitNode(self, code, bNode->arg1, true);
 
         Compiler_patchJumpToCurrent(self, code, toPatch);
+
+        /*
+         * TODO It isn't obvious how to short circuit, respect potential
+         * side effects, and not emit this instruction. This probably isn't
+         * a high priority optimizatin, however, since this isn't the
+         * usual case.
+         */
+        if(!emitReturn) emitInstruction(code, node->line, OP_DROP);
+
         return result;
       }
 
     case NODE_IF:
       {
         TernaryNode* tNode = (TernaryNode*)node;
-        size_t result = emitNode(self, code, tNode->arg0);
+        size_t result = emitNode(self, code, tNode->arg0, true);
         size_t patch0 = emitJump(self, code, node->line, OP_JUMP_IF_FALSE);
-        emitNode(self, code, tNode->arg1);
+        emitNode(self, code, tNode->arg1, emitReturn);
 
         size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
         Compiler_patchJumpToCurrent(self, code, patch0);
 
+        /*
+         * TODO If the else branch doesn't emit any instructions, we don't
+         * need a jump to get past it.
+         */
+
         if(tNode->arg2 == NULL) {
-          emitInstruction(code, node->line, OP_NIL);
+          if(emitReturn) emitInstruction(code, node->line, OP_NIL);
         } else {
-          emitNode(self, code, tNode->arg2);
+          emitNode(self, code, tNode->arg2, emitReturn);
         }
         Compiler_patchJumpToCurrent(self, code, patch1);
         return result;
@@ -398,26 +506,11 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
     case NODE_WHILE:
       {
         BinaryNode* bNode = (BinaryNode*)node;
-        size_t result = emitNode(self, code, bNode->arg0);
+
+        size_t result = emitNode(self, code, bNode->arg0, true);
         size_t patch0 = emitJump(self, code, node->line, OP_JUMP_IF_FALSE);
 
-        emitNode(self, code, bNode->arg1);
-
-        /*
-         * We have to drop the results of the while body, otherwise
-         * they pile up on the stack.
-         *
-         * It might appear that we can optimize this by not pushing an
-         * item onto the stack in the first place, but the implementation
-         * turns out to be non-trivial due to cases where, for example,
-         * the previous instruction pushes an integer (because the integer
-         * is encoded after the instruction) or jumps (because the jump
-         * delta is encoded after the instruction).
-         */
-        /*
-         * TODO Come up with a way to not have to do this.
-         */
-        emitInstruction(code, node->line, OP_DROP);
+        emitNode(self, code, bNode->arg1, false);
 
         /*
          * Jump back to the beginning of the loop.
@@ -431,7 +524,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
 
         Compiler_patchJumpToCurrent(self, code, patch0);
 
-        emitInstruction(code, node->line, OP_NIL);
+        if(emitReturn) emitInstruction(code, node->line, OP_NIL);
         return result;
       }
 
@@ -457,7 +550,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
          * TODO Consider storing variables in a separate symbol table,
          * as they have separate performance concerns from strings.
          */
-        size_t result = emitNode(self, code, bNode->arg1);
+        size_t result = emitNode(self, code, bNode->arg1, true);
 
         AtomNode* targetNode = ((AtomNode*)(bNode->arg0));
 
@@ -474,17 +567,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
             emitByte(code, node->line, (uint8_t)OP_SET);
             emitByte(code, node->line, s - (self->stack.items));
 
-            /*
-             * TODO We'd prefer not to emit a nil instruction after every
-             * assignment, but the repl expects a return and if it pops,
-             * the variable we just assigned now points off the end of the
-             * stack.
-             *
-             * This feels like a hack, but the alternatives I have
-             * thought of so far are even hackier, so I'm just going to
-             * leave this until I have a more elegant solution.
-             */
-            emitByte(code, node->line, (uint8_t)OP_NIL);
+            if(emitReturn) emitByte(code, node->line, (uint8_t)OP_NIL);
             return result;
           }
         }
@@ -511,21 +594,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
 
         SymbolStack_push(&(self->stack), s);
 
-        /*
-         * TODO We'd prefer not to emit a nil instruction after every
-         * assignment, but the repl expects a return and if it pops,
-         * the variable we just assigned now points off the end of the
-         * stack.
-         *
-         * This feels like a hack, but the alternatives I have
-         * thought of so far are even hackier, so I'm just going to
-         * leave this until I have a more elegant solution.
-         *
-         * This is *particularly* galling with declarations, because
-         * if we don't have to emit this NIL, our declaration is an
-         * extremely satisfying total of 0 instructions at runtime.
-         */
-        emitInstruction(code, node->line, OP_NIL);
+        if(emitReturn) emitInstruction(code, node->line, OP_NIL);
         return result;
       }
 
@@ -533,42 +602,33 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
       {
         ExpressionListNode* elNode = (ExpressionListNode*)node;
 
-        if(elNode->length == 0) {
+        if(elNode->length == 0 && emitReturn) {
           return emitInstruction(code, node->line, OP_NIL);
+        }
+
+        if(elNode->length == 1) {
+          return emitNode(self, code, elNode->items[0], emitReturn);
         }
 
         /*
          * Emit the first node outside the loop, so we can record
-         * where it is.
+         * where it is and return it.
          */
-        size_t result = emitNode(self, code, elNode->items[0]);
+        size_t result = emitNode(self, code, elNode->items[0], false);
 
-        for(size_t i = 1; i < elNode->length; i++) {
+        for(size_t i = 1; i < elNode->length - 1; i++) {
           /*
-           * This drops the result of all but the last item, so that
-           * only the result of the last item is left on the stack once
-           * the expression is done.
+           * emitReturn is always false for these, since we are discarding
+           * the results anyway.
            */
-          /*
-           * TODO Pass an `asStatement` bool into emitNode. If true,
-           * make sure the stack effect of emitted code is 0, by dropping
-           * values from the stack if necessary, but ideally, by not emitting
-           * extra bytes in the first place. This way we wouldn't have to
-           * emit a drop after every expression (except the last, because
-           * we're an expression too!).
-           *
-           * Conversely, if `asStatement` is
-           * false, make sure the stack effect of emitted code is +1, by
-           * pushing nils if necessary, because we're treating it as an
-           * expression.
-           *
-           * TODO While we're at it, we should probably admit that nodes are
-           * expresions, and rename Node and emitNode accordingly.
-           */
-          emitInstruction(code, node->line, OP_DROP);
-
-          emitNode(self, code, elNode->items[i]);
+          emitNode(self, code, elNode->items[i], false);
         }
+
+        /*
+         * Emit the last node outside the loop, so we can return its value
+         * if necessary.
+         */
+        emitNode(self, code, elNode->items[elNode->length - 1], emitReturn);
 
         return result;
       }
@@ -594,23 +654,29 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
            * If there are any arguments, emit the first argument outside the
            * loop so we can capture where it's emitted to.
            */
-          result = emitNode(self, code, arguments->items[0]);
+          result = emitNode(self, code, arguments->items[0], true);
 
           for(int i = 1; i < arguments->length; i++) {
-            emitNode(self, code, arguments->items[i]);
+            emitNode(self, code, arguments->items[i], true);
           }
 
-          emitNode(self, code, callee);
+          emitNode(self, code, callee, true);
         } else {
           /*
            * If there are not any arguments, we capture the emitted callee
            * location instead.
            */
-          result = emitNode(self, code, callee);
+          result = emitNode(self, code, callee, true);
         }
 
         emitInstruction(code, node->line, OP_CALL);
         emitByte(code, node->line, (uint8_t)arguments->length);
+
+        /*
+         * Function calls always emit a return and it's difficult to change
+         * that without adding types.
+         */
+        if(!emitReturn) emitInstruction(code, node->line, OP_DROP);
 
         return result;
       }
@@ -621,5 +687,5 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
 }
 
 size_t Compiler_compile(Compiler* self, Code* code, Node* tree) {
-  return emitNode(self, code, tree);
+  return emitNode(self, code, tree, true);
 }

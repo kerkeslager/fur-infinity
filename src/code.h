@@ -71,6 +71,7 @@ uint8_t Code_internObject(Code* self, Obj* intern);
 Instruction Code_get(Code*, size_t index);
 int16_t Code_getInt16(Code*, size_t index);
 int32_t Code_getInt32(Code*, size_t index);
+size_t Code_getCurrent(Code*);
 
 Obj* Code_getInterned(Code* self, uint8_t index);
 

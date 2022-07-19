@@ -156,6 +156,10 @@ int32_t Code_getInt32(Code* self, size_t index) {
   return *((int32_t*)(self->instructions.items + index));
 }
 
+size_t Code_getCurrent(Code* self) {
+  return self->instructions.length;
+}
+
 uint8_t Code_internObject(Code* self, Obj* intern) {
   /*
    * TODO Check for duplicates. It could be costly at compile time,
