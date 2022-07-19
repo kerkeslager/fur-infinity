@@ -9,33 +9,35 @@
 void Instruction_print(Instruction i) {
   switch(i) {
     #define MAP(i) case i: printf(#i); break;
-    MAP(OP_NIL);
-    MAP(OP_TRUE);
-    MAP(OP_FALSE);
-    MAP(OP_INTEGER);
-    MAP(OP_STRING);
-    MAP(OP_DROP);
+    MAP(OP_ADD);
     MAP(OP_AND);
-    MAP(OP_SUBTRACT);
-    MAP(OP_MULTIPLY);
+    MAP(OP_CALL);
     MAP(OP_DIVIDE);
-    MAP(OP_NEGATE);
-    MAP(OP_NOT);
+    MAP(OP_DROP);
     MAP(OP_EQ);
-    MAP(OP_LT);
-    MAP(OP_GT);
-    MAP(OP_NEQ);
+    MAP(OP_FALSE);
     MAP(OP_GEQ);
-    MAP(OP_LEQ);
-    MAP(OP_SET);
     MAP(OP_GET);
-    MAP(OP_PROP);
+    MAP(OP_GT);
+    MAP(OP_INTEGER);
     MAP(OP_JUMP);
     MAP(OP_JUMP_IF_TRUE);
     MAP(OP_JUMP_IF_FALSE);
+    MAP(OP_LEQ);
+    MAP(OP_LT);
+    MAP(OP_MULTIPLY);
+    MAP(OP_NATIVE);
+    MAP(OP_NEGATE);
+    MAP(OP_NEQ);
+    MAP(OP_NIL);
+    MAP(OP_NOT);
     MAP(OP_OR);
-    MAP(OP_ADD);
+    MAP(OP_PROP);
     MAP(OP_RETURN);
+    MAP(OP_SET);
+    MAP(OP_STRING);
+    MAP(OP_SUBTRACT);
+    MAP(OP_TRUE);
     #undef MAP
 
     default:

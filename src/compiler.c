@@ -243,7 +243,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
         for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
           if(s->length == aNode->length &&
               !strncmp(s->name, aNode->text, s->length)) {
-            size_t result = emitByte(code, node->line, (uint8_t)OP_GET);
+            size_t result = emitInstruction(code, node->line, OP_GET);
             emitByte(code, node->line, s - (self->stack.items));
 
             return result;
@@ -262,9 +262,39 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
          * end
          *
          * foo = 'Hello, world'
+         *
+         * Next we try the builtins. Since user defined variables are tried
+         * first, this means it's possible to override built in functions.
          */
+        /*
+         * TODO Think about this more. I can't think of a way that loading
+         * natives "late" like this bites us, but it's bothering my
+         * intuition, so maybe there's some case my subconscious has thought
+         * of where it goes wrong.
+         *
+         * A more foolproof way is to simply preload natives onto the
+         * stack like locals, but currently our locals stack depth tops out
+         * at UINT8_MAX, and adding natives below that would necessitate
+         * expanding the stack to UINT16_MAX, meaning larger get/set
+         * instructions. Python, for example, has 71 (documented) builtins
+         * at the time of this writing, which would leave only 255-71 = 184
+         * slots for locals.
+         */
+        for(size_t i = 0; i < NATIVE_COUNT; i++) {
+          if(!strncmp(NATIVE[i].name, aNode->text, aNode->length)) {
+            size_t result = emitInstruction(code, node->line, OP_NATIVE);
+
+            /*
+             * We can only have UINT8_MAX native functions built in at the
+             * top level (we should namespace others in builtin modules).
+             */
+            assert(i <= UINT8_MAX);
+            emitByte(code, node->line, (uint8_t)i);
+
+            return result;
+          }
+        }
         assert(false); // TODO Handle this
-        return 0;
       }
 
     case NODE_NUMBER:
@@ -539,6 +569,48 @@ static size_t emitNode(Compiler* self, Code* code, Node* node) {
 
           emitNode(self, code, elNode->items[i]);
         }
+
+        return result;
+      }
+
+    case NODE_CALL:
+      {
+        BinaryNode* bNode = (BinaryNode*)node;
+
+        assert(bNode->arg1->type == NODE_COMMA_SEPARATED_LIST);
+
+        Node* callee = bNode->arg0;
+        ExpressionListNode* arguments = (ExpressionListNode*)(bNode->arg1);
+
+        /*
+         * We support at most UINT8_MAX arguments to a function.
+         */
+        assert(arguments->length <= UINT8_MAX); // TODO Handle this
+
+        size_t result;
+
+        if(arguments->length > 0) {
+          /*
+           * If there are any arguments, emit the first argument outside the
+           * loop so we can capture where it's emitted to.
+           */
+          result = emitNode(self, code, arguments->items[0]);
+
+          for(int i = 1; i < arguments->length; i++) {
+            emitNode(self, code, arguments->items[i]);
+          }
+
+          emitNode(self, code, callee);
+        } else {
+          /*
+           * If there are not any arguments, we capture the emitted callee
+           * location instead.
+           */
+          result = emitNode(self, code, callee);
+        }
+
+        emitInstruction(code, node->line, OP_CALL);
+        emitByte(code, node->line, (uint8_t)arguments->length);
 
         return result;
       }

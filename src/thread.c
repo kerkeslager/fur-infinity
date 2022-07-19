@@ -475,6 +475,42 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
           }
         } break;
 
+      case OP_CALL:
+        {
+          uint8_t argc = Code_get(code, index);
+          index++;
+
+          Value callee = Stack_pop(&(self->stack));
+          assert(callee.is_a == TYPE_OBJ);
+          assert(callee.as.obj->type == OBJ_NATIVE);
+
+          Value (*call)(uint8_t, Value*) = ((ObjNative*)(callee.as.obj))->call;
+
+          /*
+           * We leave the arguments on the stack while the function is
+           * running so that they are considered live by the garbage
+           * collector.
+           */
+          Value* argv = self->stack.top - argc;
+          Value result = call(argc, self->stack.top - argc);
+          *argv = result;
+          self->stack.top = argv + 1;
+        } break;
+
+      case OP_NATIVE:
+        {
+          ObjNative* n = malloc(sizeof(ObjNative));
+          ObjNative_init(n, NATIVE[Code_get(code, index)].call);
+
+          Value v;
+          v.is_a = TYPE_OBJ;
+          v.as.obj = (Obj*)n;
+
+          Stack_push(&(self->stack), v);
+
+          index++;
+        } break;
+
       default:
         assert(false);
     }
