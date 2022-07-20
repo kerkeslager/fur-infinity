@@ -80,6 +80,8 @@ static void printTernaryNode(char* name, TernaryNode* node) {
 }
 
 static void printNode(Node* node) {
+  assert(node != NULL);
+
   switch(node->type) {
     case NODE_NIL:
       printf("nil");
@@ -131,6 +133,22 @@ static void printNode(Node* node) {
     case NODE_IF:
       printTernaryNode("if", (TernaryNode*)node);
       break;
+
+    case NODE_FN_DEF:
+      printTernaryNode("def", (TernaryNode*)node);
+      break;
+
+    case NODE_COMMA_SEPARATED_LIST:
+      {
+        ExpressionListNode* elNode = (ExpressionListNode*)node;
+
+        printf("(");
+        for(size_t i = 0; i < elNode->length; i++) {
+          if(i != 0) printf(" ");
+          printNode(elNode->items[i]);
+        }
+        printf(")");
+      } break;
 
     case NODE_EXPRESSION_LIST:
       {

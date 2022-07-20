@@ -37,6 +37,7 @@ typedef enum {
   NODE_CALL,
 
   // Ternary nodes
+  NODE_FN_DEF,
   NODE_IF,
 
   // List nodes

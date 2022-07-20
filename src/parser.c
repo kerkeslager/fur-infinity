@@ -227,6 +227,42 @@ static Node* parseCall(Scanner* scanner, size_t line) {
   }
 }
 
+Node* parseFunctionDefinition(Scanner* scanner, size_t line) {
+  Token token = Scanner_scan(scanner);
+  assert(token.type == TOKEN_IDENTIFIER);
+  Node* name = makeAtomNode(token);
+
+  token = Scanner_peek(scanner);
+  assert(token.type == TOKEN_OPEN_PAREN);
+
+  /*
+   * TODO There are some inefficiencies introduced by this function,
+   * which is also used to parse argument lists for function calls.
+   * We want some code reuse here, but let's try and optimize it.
+   */
+  /*
+   * TODO Rename this function.
+   */
+  Node* arguments = parseCall(scanner, line);
+
+  for(size_t i = 0; i < ((ExpressionListNode*)arguments)->length; i++) {
+    Node* a = ((ExpressionListNode*)arguments)->items[i];
+    assert(a->type == NODE_IDENTIFIER);
+  }
+
+  token = Scanner_scan(scanner);
+  assert(token.type == TOKEN_COLON);
+
+  TokenType expectedExit = TOKEN_END;
+
+  Node* body = parseExpressionList(scanner, 1, &expectedExit);
+
+  token = Scanner_scan(scanner);
+  assert(token.type == TOKEN_END);
+
+  return makeTernaryNode(NODE_FN_DEF, line, name, arguments, body);
+}
+
 Node* parseIf(Scanner* scanner, size_t line) {
   // TODO Can we set a precedence that ensures this is a boolean?
   Node* test = parseExpression(scanner, PREC_ANY);
@@ -331,6 +367,9 @@ Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
     case TOKEN_DQSTR:
       leftOperand = makeAtomNode(token);
       break;
+
+    case TOKEN_DEF:
+      return parseFunctionDefinition(scanner, token.line);
 
     case TOKEN_IF:
       return parseIf(scanner, token.line);
@@ -448,6 +487,7 @@ void Node_free(Node* self) {
 
   switch(self->type) {
     case NODE_IF:
+    case NODE_FN_DEF:
       Node_free(((TernaryNode*)self)->arg2);
       // Don't break, cascade to further cleanup
 
