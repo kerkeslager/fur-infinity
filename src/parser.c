@@ -306,22 +306,6 @@ const static PrecedenceRule PRECEDENCE_TABLE[] = {
   [TOKEN_WHILE] =       { PREC_NONE,  PREC_NONE,        PREC_NONE         },
 };
 
-inline static bool isAtom(TokenType t) {
-  switch(t) {
-    case TOKEN_NIL:
-    case TOKEN_TRUE:
-    case TOKEN_FALSE:
-    case TOKEN_IDENTIFIER:
-    case TOKEN_NUMBER:
-    case TOKEN_SQSTR:
-    case TOKEN_DQSTR:
-      return true;
-
-    default:
-      return false;
-  }
-}
-
 Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
   /*
    * This function is the core of the Pratt algorithm.
@@ -333,36 +317,55 @@ Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
   Token token = Scanner_scan(scanner);
   Node* leftOperand = NULL;
 
-  if(token.type == TOKEN_EOF) {
-    return NULL;
-  } else if(isAtom(token.type)) {
-    leftOperand = makeAtomNode(token);
-  } else if(token.type == TOKEN_IF) {
-    return parseIf(scanner, token.line);
-  } else if(token.type == TOKEN_OPEN_PAREN) {
-    leftOperand = parseExpression(scanner, PREC_ANY);
-    token = Scanner_scan(scanner);
-    // TODO Handle this
-    assert(token.type == TOKEN_CLOSE_PAREN);
-  } else if(token.type == TOKEN_WHILE) {
-    return parseWhile(scanner, token.line);
-  } else if(PRECEDENCE_TABLE[token.type].prefix > PREC_NONE) {
-    Node* prefixOperand = parseExpression(
-      scanner,
-      PRECEDENCE_TABLE[token.type].prefix
-    );
+  switch(token.type) {
+    case TOKEN_EOF:
+      return NULL;
 
-    // TODO Handle this
-    assert(prefixOperand != NULL);
+    /* Atoms */
+    case TOKEN_NIL:
+    case TOKEN_TRUE:
+    case TOKEN_FALSE:
+    case TOKEN_IDENTIFIER:
+    case TOKEN_NUMBER:
+    case TOKEN_SQSTR:
+    case TOKEN_DQSTR:
+      leftOperand = makeAtomNode(token);
+      break;
 
-    leftOperand = makeUnaryNode(token, prefixOperand);
+    case TOKEN_IF:
+      return parseIf(scanner, token.line);
+
+    case TOKEN_OPEN_PAREN:
+      leftOperand = parseExpression(scanner, PREC_ANY);
+      token = Scanner_scan(scanner);
+      // TODO Handle this
+      assert(token.type == TOKEN_CLOSE_PAREN);
+      break;
+
+    case TOKEN_WHILE:
+      return parseWhile(scanner, token.line);
+
+    default:
+      {
+        if(PRECEDENCE_TABLE[token.type].prefix > PREC_NONE) {
+          Node* prefixOperand = parseExpression(
+              scanner,
+              PRECEDENCE_TABLE[token.type].prefix
+            );
+
+          // TODO Handle this
+          assert(prefixOperand != NULL);
+
+          leftOperand = makeUnaryNode(token, prefixOperand);
+        }
+      } break;
   }
 
   if(leftOperand == NULL) {
     printf("TokenType: %s\n", TokenType_asString(token.type));
+    fflush(stdout);
+    assert(false);
   }
-
-  assert(leftOperand != NULL);
 
   /*
    * The basic case is an infix operation, which consists of a operator
