@@ -251,6 +251,9 @@ Node* parseFunctionDefinition(Scanner* scanner, size_t line) {
   }
 
   token = Scanner_scan(scanner);
+  assert(token.type == TOKEN_CLOSE_PAREN);
+
+  token = Scanner_scan(scanner);
   assert(token.type == TOKEN_COLON);
 
   TokenType expectedExit = TOKEN_END;
@@ -401,7 +404,11 @@ Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
   }
 
   if(leftOperand == NULL) {
-    printf("TokenType: %s\n", TokenType_asString(token.type));
+    printf(
+        "Unable to parse %s on line %zu\n",
+        TokenType_asString(token.type),
+        token.line
+      );
     fflush(stdout);
     assert(false);
   }

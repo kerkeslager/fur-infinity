@@ -3,9 +3,11 @@
 
 #include <stdlib.h>
 
+#include "code.h"
 #include "value.h"
 
 typedef enum {
+  OBJ_CLOSURE,
   OBJ_NATIVE,
   OBJ_STRING
 } ObjType;
@@ -14,6 +16,11 @@ struct Obj {
   Obj* next;
   ObjType type;
 };
+
+typedef struct {
+  Obj obj;
+  Code* code;
+} ObjClosure;
 
 typedef struct {
   Obj obj;

@@ -220,6 +220,11 @@ void Compiler_patchJumpToCurrent(Compiler* self, Code* code, size_t jumpIndex) {
   Compiler_patchJump(self, code, jumpIndex, code->instructions.length);
 }
 
+size_t emitFunction(Code* code, Code* functionCode) {
+  assert(false);
+  return 0;
+}
+
 /*
  * emitReturn tells us whether the node should return a value by placing the
  * item on the stack. This allows us to perform an optimization.
@@ -540,13 +545,6 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
         assert(bNode->arg0->type == NODE_IDENTIFIER);
 
         /*
-         * TODO This makes it urgent that we deduplicate interned strings,
-         * since we are interning a separate string for every variable
-         * and many variables will have the same name. We also want symbol
-         * equality to be fast, so making interned strings references equal
-         * would be a big win.
-         */
-        /*
          * TODO Consider storing variables in a separate symbol table,
          * as they have separate performance concerns from strings.
          */
@@ -677,6 +675,123 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * that without adding types.
          */
         if(!emitReturn) emitInstruction(code, node->line, OP_DROP);
+
+        return result;
+      }
+
+    case NODE_FN_DEF:
+      {
+        /*
+         * TODO Should we pull this into a separate compiler?
+         */
+        TernaryNode* tNode = (TernaryNode*)node;
+
+        assert(tNode->arg0->type == NODE_IDENTIFIER);
+        AtomNode* name = (AtomNode*)(tNode->arg0);
+
+        assert(tNode->arg1->type == NODE_COMMA_SEPARATED_LIST);
+        ExpressionListNode* arguments = (ExpressionListNode*)(tNode->arg1);
+
+        assert(tNode->arg2->type == NODE_EXPRESSION_LIST);
+        ExpressionListNode* body = (ExpressionListNode*)(tNode->arg2);
+
+        /*
+         * First we compile the code for the function, then we assign it
+         * to a local variable.
+         */
+
+        /*
+         * TODO Code_init does a few things which aren't great for functions.
+         * Most notably, code is maintaining a separate list of interned
+         * strings, which should probably be shared by the whole runtime.
+         */
+        Code* functionCode = malloc(sizeof(Code));
+        Code_init(functionCode);
+
+        /*
+         * TODO Capture upvalues.
+         */
+
+        /*
+         * The values for the arguments are already on the stack, and
+         * OP_CALL has already pointed the stack, so we just have to
+         * assign the argument names to the stack values.
+         */
+        assert(arguments->length <= UINT8_MAX);
+        uint8_t arity = (uint8_t)(arguments->length);
+
+        for(int i = 0; i < arity; i++) {
+          assert(arguments->items[i]->type == NODE_IDENTIFIER);
+          AtomNode* a = (AtomNode*)(arguments->items[i]);
+
+          Symbol s;
+          Symbol_init(
+              &s,
+              a->length,
+              a->text
+            );
+          SymbolStack_push(&(self->stack), s);
+        }
+
+        emitNode(self, functionCode, (Node*)body, true);
+
+        /*
+         * TODO We need to fix any variables that were emitted in the
+         * body of the function, because they are sitting on the stack
+         * after the function runs.
+         */
+
+        size_t result = emitFunction(code, functionCode);
+
+        /*
+         * Pop off the argument symbols from the symbol stack, since they are
+         * no longer in scope.
+         */
+        for(int i = 0; i < arity; i++) {
+          SymbolStack_pop(&(self->stack));
+        }
+
+        for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
+          if(s->length == name->length &&
+              !strncmp(s->name, name->text, s->length)) {
+            /*
+             * We don't allow redefining functions at this time.
+             */
+            assert(false);
+
+            /*
+             * TODO This code doesn't catch the following case:
+             *
+             * def foo():
+             *   ...
+             * end
+             *
+             * foo = 1
+             */
+          }
+        }
+
+        /*
+         * We only get here if the symbol is not on the stack, meaning
+         * the compiler has not seen it before.
+         *
+         * This is the implicit "declaration" case of a variable. If the
+         * variable has not been assigned before, we emit no instructions,
+         * because the value we want to store in the variable is already
+         * on the top of the stack, which is where we will store the
+         * variable. However, we must record the stack location *in the
+         * compiler* so that we can emit instructions that reference
+         * this stack location by number.
+         */
+        assert(name->length < 255);
+        Symbol s;
+        Symbol_init(
+            &s,
+            name->length,
+            name->text
+            );
+
+        SymbolStack_push(&(self->stack), s);
 
         return result;
       }

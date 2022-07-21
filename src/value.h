@@ -68,6 +68,5 @@ inline static Value Value_fromObj(Obj* o) {
 }
 
 void Value_printRepr(Value);
-int Value_asSuccess(Value);
 
 #endif

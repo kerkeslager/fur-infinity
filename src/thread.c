@@ -35,6 +35,7 @@ Value Stack_peek(Stack* self) {
   return *(self->top - 1);
 }
 
+#if DEBUG
 void Stack_print(Stack* self) {
   printf("[");
   for(Value* v = self->items; v < self->top; v++) {
@@ -43,6 +44,7 @@ void Stack_print(Stack* self) {
   }
   printf(" ]");
 }
+#endif
 
 void Stack_unary(Stack* self, Value (*unary)(Value)) {
   /*
@@ -222,16 +224,13 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
      */
     index++;
 
-    /*
-     * TODO Eventually we will only want this if some sort of debug flag is
-     * passed to the compiler. But right now the only people running this code
-     * are debugging it.
-     */
+    #if DEBUG
     Stack_print(&(self->stack));
     printf(" ");
     Instruction_print(instruction);
     printf("\n");
     fflush(stdout);
+    #endif
 
     switch(instruction) {
       case OP_GET:

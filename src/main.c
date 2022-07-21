@@ -462,18 +462,12 @@ int runFile(Options options, char* filename, int argc, char** argv) {
       1
   );
 
-  /*
-   * We must call Value_asSuccess() before Thread_free(), because result
-   * may reference the heap, which is freed by Thread_free()
-   */
-  int ret = Value_asSuccess(result);
-
   Compiler_free(&compiler);
   Code_free(&code);
   Thread_free(&thread);
   free(source);
 
-  return ret;
+  return 0;
 }
 
 void printVersion() {
@@ -551,18 +545,12 @@ int main(int argc, char** argv) {
           1
         );
 
-        /*
-         * We must call Value_asSuccess before freeing the thread, because if
-         * result is an object, it may reference the heap, which is freed
-         * when the thread is freed.
-         */
-        int ret = Value_asSuccess(result);
 
         Compiler_free(&compiler);
         Code_free(&code);
         Thread_free(&thread);
 
-        return ret;
+        return 0;
       } else if(argv[i][1] == '-') {
         // Long form arguments
         if(!strcmp("--compile", argv[i])) {

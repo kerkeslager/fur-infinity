@@ -23,8 +23,3 @@ void Value_printRepr(Value value) {
       return;
   }
 }
-
-int Value_asSuccess(Value value) {
-  assert(value.is_a == TYPE_INTEGER);
-  return (int)value.as.integer;
-}
