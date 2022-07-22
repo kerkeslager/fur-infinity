@@ -366,6 +366,12 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
             return result;
           }
         }
+
+        char buffer[aNode->length + 1];
+        snprintf(buffer, aNode->length, "%s", aNode->text);
+        buffer[aNode->length] = '\0';
+        printf("Unknown identifier \"%s\"\n", buffer);
+        fflush(stdout);
         assert(false); // TODO Handle this
       }
 
