@@ -110,16 +110,9 @@ void Thread_addToHeap(Thread* self, Obj* o) {
 }
 
 inline static Value logicalNot(Value arg) {
-  switch(arg.is_a) {
-    case TYPE_TRUE:
-      arg.is_a = TYPE_FALSE;
-      return arg;
-    case TYPE_FALSE:
-      arg.is_a = TYPE_TRUE;
-      return arg;
-    default:
-      assert(false);
-  }
+  assert(arg.is_a == TYPE_BOOLEAN);
+  arg.as.boolean = !(arg.as.boolean);
+  return arg;
 }
 
 inline static Value negate(Value arg) {
@@ -172,7 +165,8 @@ inline static Value concat(Value arg0, Value arg1) {
   inline static Value name(Value arg0, Value arg1) { \
     assert(isInteger(arg0)); \
     assert(isInteger(arg1)); \
-    arg0.is_a = (arg0.as.integer op arg1.as.integer) ? TYPE_TRUE : TYPE_FALSE; \
+    arg0.is_a = TYPE_BOOLEAN; \
+    arg0.as.boolean = (arg0.as.integer op arg1.as.integer); \
     return arg0; \
   }
 ORDER_BINARY_FUNCTION(lessThan, <)
@@ -184,9 +178,10 @@ ORDER_BINARY_FUNCTION(greaterThanEquals, >=)
 inline static Value equals(Value arg0, Value arg1) {
   switch(arg0.is_a) {
     case TYPE_NIL:
-    case TYPE_TRUE:
-    case TYPE_FALSE:
       return Value_fromBool(arg0.is_a == arg1.is_a);
+
+    case TYPE_BOOLEAN:
+      return Value_fromBool(arg0.as.boolean == arg1.as.boolean);
 
     case TYPE_INTEGER:
       return Value_fromBool(
@@ -336,9 +331,9 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
         {
           Value v = Stack_pop(&(self->stack));
 
-          assert(v.is_a == TYPE_TRUE || v.is_a == TYPE_FALSE);
+          assert(v.is_a == TYPE_BOOLEAN);
 
-          if(v.is_a == TYPE_TRUE) {
+          if(v.as.boolean) {
             int16_t jump = Code_getInt16(code, index);
             index += jump;
           } else {
@@ -353,9 +348,9 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
         {
           Value v = Stack_pop(&(self->stack));
 
-          assert(v.is_a == TYPE_TRUE || v.is_a == TYPE_FALSE);
+          assert(v.is_a == TYPE_BOOLEAN);
 
-          if(v.is_a == TYPE_FALSE) {
+          if(!(v.as.boolean)) {
             int16_t jump = Code_getInt16(code, index);
             index += jump;
           } else {
@@ -412,9 +407,9 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
         {
           Value v = Stack_peek(&(self->stack));
 
-          assert(v.is_a == TYPE_TRUE || v.is_a == TYPE_FALSE);
+          assert(v.is_a == TYPE_BOOLEAN);
 
-          if(v.is_a == TYPE_FALSE) {
+          if(!(v.as.boolean)) {
             int16_t jump = Code_getInt16(code, index);
             index += jump;
           } else {
@@ -433,9 +428,9 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
         {
           Value v = Stack_peek(&(self->stack));
 
-          assert(v.is_a == TYPE_TRUE || v.is_a == TYPE_FALSE);
+          assert(v.is_a == TYPE_BOOLEAN);
 
-          if(v.is_a == TYPE_TRUE) {
+          if(v.as.boolean) {
             int16_t jump = Code_getInt16(code, index);
             index += jump;
           } else {

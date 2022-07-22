@@ -11,23 +11,30 @@ typedef struct ObjString ObjString;
 typedef struct {
   enum {
     TYPE_NIL,
-    TYPE_TRUE,
-    TYPE_FALSE,
+    TYPE_BOOLEAN,
     TYPE_INTEGER,
     TYPE_OBJ,
   } is_a;
 
   union {
+    bool boolean;
     int32_t integer;
     Obj* obj;
   } as;
 } Value;
 
 #define isNil(v)      (v.is_a == TYPE_NIL)
-#define isTrue(v)     (v.is_a == TYPE_TRUE)
-#define isFalse(v)    (v.is_a == TYPE_FALSE)
 #define isInteger(v)  (v.is_a == TYPE_INTEGER)
 #define isObj(v)      (v.is_a == TYPE_OBJ)
+
+static bool isTrue(Value v) {
+  return v.is_a == TYPE_BOOLEAN && v.as.boolean;
+}
+
+static bool isFalse(Value v) {
+  return v.is_a == TYPE_BOOLEAN && !(v.as.boolean);
+}
+
 
 static const Value VALUE_NIL = {
   TYPE_NIL
@@ -49,7 +56,8 @@ inline static bool Value_toBool(Value v) {
 
 inline static Value Value_fromBool(bool b) {
   Value result;
-  result.is_a = b ? TYPE_TRUE : TYPE_FALSE;
+  result.is_a = TYPE_BOOLEAN;
+  result.as.boolean = b;
   return result;
 }
 
