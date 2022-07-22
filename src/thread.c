@@ -35,7 +35,7 @@ Value Stack_peek(Stack* self) {
   return *(self->top - 1);
 }
 
-#if DEBUG
+#ifdef DEBUG
 void Stack_print(Stack* self) {
   printf("[");
   for(Value* v = self->items; v < self->top; v++) {
@@ -219,7 +219,7 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
      */
     index++;
 
-    #if DEBUG
+    #ifdef DEBUG
     Stack_print(&(self->stack));
     printf(" ");
     Instruction_print(instruction);

@@ -236,25 +236,21 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
         );
         break;
 
-      case OP_SET:
-        strcpy(opString, "set");
-        i++;
-        sprintf(
-            argString,
-            "%d",
-            code->instructions.items[i]
-        );
-        break;
-
-      case OP_GET:
-        strcpy(opString, "get");
-        i++;
-        sprintf(
-            argString,
-            "%d",
-            code->instructions.items[i]
-        );
-        break;
+      #define ONE_BYTE_ARG(op, name) \
+        case op: \
+          strcpy(opString, #name); \
+          i++; \
+          sprintf( \
+              argString, \
+              "%d", \
+              code->instructions.items[i] \
+          ); \
+          break
+      ONE_BYTE_ARG(OP_SET, set);
+      ONE_BYTE_ARG(OP_GET, get);
+      ONE_BYTE_ARG(OP_CALL, call);
+      ONE_BYTE_ARG(OP_NATIVE, native);
+      #undef ONE_BYTE_ARG
 
       #define JUMP(op, name) \
         case op: \
@@ -267,7 +263,6 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
           ); \
           i++; \
           break
-
       JUMP(OP_JUMP, jump);
       JUMP(OP_JUMP_IF_TRUE, jump_if_true);
       JUMP(OP_JUMP_IF_FALSE, jump_if_false);
@@ -301,7 +296,10 @@ void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
       MAP(OP_LEQ, leq);
       MAP(OP_PROP, prop);
       #undef MAP
+
       default:
+        printf("Number: %i\n", code->instructions.items[i]);
+        fflush(stdout);
         assert(false);
     }
 
