@@ -225,6 +225,14 @@ size_t emitFunction(Code* code, Code* functionCode) {
   return 0;
 }
 
+inline static size_t emitBasic(Code* code, size_t line, Instruction i, bool emitReturn) {
+  if(emitReturn) {
+    return emitInstruction(code, line, OP_NIL);
+  } else {
+    return Code_getCurrent(code);
+  }
+}
+
 /*
  * emitReturn tells us whether the node should return a value by placing the
  * item on the stack. This allows us to perform an optimization.
@@ -278,25 +286,13 @@ size_t emitFunction(Code* code, Code* functionCode) {
 static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) {
   switch(node->type) {
     case NODE_NIL:
-      if(emitReturn) {
-        return emitByte(code, node->line, (uint8_t)OP_NIL);
-      } else {
-        return Code_getCurrent(code);
-      }
+      return emitBasic(code, node->line, OP_NIL, emitReturn);
 
     case NODE_TRUE:
-      if(emitReturn) {
-        return emitByte(code, node->line, (uint8_t)OP_TRUE);
-      } else {
-        return Code_getCurrent(code);
-      }
+      return emitBasic(code, node->line, OP_TRUE, emitReturn);
 
     case NODE_FALSE:
-      if(emitReturn) {
-        return emitByte(code, node->line, (uint8_t)OP_FALSE);
-      } else {
-        return Code_getCurrent(code);
-      }
+      return emitBasic(code, node->line, OP_FALSE, emitReturn);
 
     case NODE_IDENTIFIER:
       {
