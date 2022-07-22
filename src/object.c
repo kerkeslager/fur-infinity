@@ -134,13 +134,35 @@ void Obj_printRepr(Obj* self) {
 
 Value nativePrint(uint8_t argc, Value* argv) {
   for(uint8_t i = 0; i < argc; i++) {
-    assert(argv[i].is_a == TYPE_OBJ);
-    assert(argv[i].as.obj->type == OBJ_STRING);
+    switch(argv[i].is_a) {
+      case TYPE_NIL:
+        printf("nil");
+        break;
 
-    ObjString* s = (ObjString*)(argv[i].as.obj);
+      case TYPE_BOOLEAN:
+        if(argv[i].as.boolean) {
+          printf("true");
+        } else {
+          printf("false");
+        } break;
 
-    for(size_t c = 0; c < s->length; c++) {
-      printf("%c", s->characters[c]);
+      case TYPE_INTEGER:
+        printf("%i", argv[i].as.integer);
+        break;
+
+      case TYPE_OBJ:
+        {
+          assert(argv[i].as.obj->type == OBJ_STRING);
+
+          ObjString* s = (ObjString*)(argv[i].as.obj);
+
+          for(size_t c = 0; c < s->length; c++) {
+            printf("%c", s->characters[c]);
+          }
+        } break;
+
+      default:
+        assert(false); // TODO Handle other types
     }
   }
 

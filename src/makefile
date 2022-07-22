@@ -1,6 +1,9 @@
 all: clean code.o compiler.o object.o parser.o scanner.o thread.o value.o main.o
 	gcc -Wall -Wimplicit-fallthrough {code,compiler,object,parser,scanner,thread,value,main}.o -o fur
 
+test: all
+	python integration_tests.py
+
 code.o:
 	gcc -c code.c -o code.o
 
