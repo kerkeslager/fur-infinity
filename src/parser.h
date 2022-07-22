@@ -46,6 +46,8 @@ typedef enum {
 
 } NodeType;
 
+void NodeType_print(NodeType);
+
 typedef struct {
   NodeType type;
   size_t line;

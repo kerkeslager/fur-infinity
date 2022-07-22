@@ -16,6 +16,44 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+void NodeType_print(NodeType type) {
+  switch(type) {
+    #define MAP(t) case t: printf(#t); break
+      MAP(NODE_NIL);
+      MAP(NODE_TRUE);
+      MAP(NODE_FALSE);
+      MAP(NODE_IDENTIFIER);
+      MAP(NODE_NUMBER);
+      MAP(NODE_STRING);
+      MAP(NODE_NEGATE);
+      MAP(NODE_NOT);
+      MAP(NODE_PROPERTY);
+      MAP(NODE_ADD);
+      MAP(NODE_SUBTRACT);
+      MAP(NODE_MULTIPLY);
+      MAP(NODE_DIVIDE);
+      MAP(NODE_EQUALS);
+      MAP(NODE_NOT_EQUALS);
+      MAP(NODE_GREATER_THAN_EQUALS);
+      MAP(NODE_LESS_THAN_EQUALS);
+      MAP(NODE_GREATER_THAN);
+      MAP(NODE_LESS_THAN);
+      MAP(NODE_AND);
+      MAP(NODE_OR);
+      MAP(NODE_ASSIGN);
+      MAP(NODE_WHILE);
+      MAP(NODE_CALL);
+      MAP(NODE_FN_DEF);
+      MAP(NODE_IF);
+      MAP(NODE_COMMA_SEPARATED_LIST);
+      MAP(NODE_EXPRESSION_LIST);
+    #undef MAP
+    default:
+      assert(false);
+  }
+
+  fflush(stdout);
+}
 
 inline static void Node_init(Node* self, NodeType type, size_t line) {
   self->type = type;
