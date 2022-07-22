@@ -459,7 +459,6 @@ static Token Scanner_scanInternal(Scanner* self) {
     ONE_CHAR_TOKEN('+', TOKEN_PLUS);
     ONE_CHAR_TOKEN('-', TOKEN_MINUS);
     ONE_CHAR_TOKEN('*', TOKEN_STAR);
-    ONE_CHAR_TOKEN('/', TOKEN_SLASH);
     ONE_CHAR_TOKEN('(', TOKEN_OPEN_PAREN);
     ONE_CHAR_TOKEN(')', TOKEN_CLOSE_PAREN);
     ONE_CHAR_TOKEN('.', TOKEN_DOT);
@@ -518,6 +517,22 @@ static Token Scanner_scanInternal(Scanner* self) {
           default:
             return makeError(
               "Unexpected token \"!\"",
+              self->line
+            );
+        }
+      }
+    case '/':
+      {
+        char* start = self->current;
+        self->current++;
+
+        switch(*(self->current)) {
+          case '/':
+            self->current++;
+            return makeToken(TOKEN_SLASH, start, 2, self->line);
+          default:
+            return makeError(
+              "Unexpected token \"/\"",
               self->line
             );
         }
