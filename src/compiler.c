@@ -227,7 +227,7 @@ size_t emitFunction(Code* code, Code* functionCode) {
 
 inline static size_t emitBasic(Code* code, size_t line, Instruction i, bool emitReturn) {
   if(emitReturn) {
-    return emitInstruction(code, line, OP_NIL);
+    return emitInstruction(code, line, i);
   } else {
     return Code_getCurrent(code);
   }

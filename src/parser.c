@@ -252,6 +252,7 @@ static Node* parseCall(Scanner* scanner, size_t line) {
 
   for(;;) {
     Node* expr = parseExpression(scanner, PREC_ANY);
+
     ExpressionListNode_append(elNode, expr);
 
     close = Scanner_scan(scanner);

@@ -22,7 +22,7 @@ def add_output_test(filename):
 
         actual_stdout, actual_stderr = p.communicate()
 
-        expected_stdout_path = os.path.join('test', filename + '.stdout.txt')
+        expected_stdout_path = os.path.join('test', filename[:-3] + 'stdout.txt')
 
         if os.path.isfile(expected_stdout_path):
             with open(expected_stdout_path, 'rb') as f:
@@ -30,7 +30,9 @@ def add_output_test(filename):
         else:
             expected_stdout = b''
 
-        expected_stderr_path = os.path.join('test', filename + '.stderr.txt')
+        self.assertEqual(expected_stdout, actual_stdout)
+
+        expected_stderr_path = os.path.join('test', filename[:-3] + 'stderr.txt')
 
         if os.path.isfile(expected_stderr_path):
             with open(expected_stderr_path, 'rb') as f:
