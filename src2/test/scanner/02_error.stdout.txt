@@ -1,0 +1,2 @@
+  1 TOKEN_ERROR      "Unrecognized character "\""
+  1 TOKEN_EOF        ""

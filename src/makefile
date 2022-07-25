@@ -1,7 +1,10 @@
 all: clean code.o compiler.o object.o parser.o scanner.o thread.o value.o main.o
-	gcc -Wall -Wimplicit-fallthrough {code,compiler,object,parser,scanner,thread,value,main}.o -o fur
+	gcc -Wall -Wextra {code,compiler,object,parser,scanner,thread,value,main}.o -o fur
 
-test: all
+debug: clean code.o compiler.o object.o parser.o scanner.o thread.o value.o main.o
+	gcc -ggdb3 -Wall -Wextra {code,compiler,object,parser,scanner,thread,value,main}.o -o fur
+
+test: debug
 	python integration_tests.py
 
 code.o:

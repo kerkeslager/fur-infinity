@@ -3,4 +3,4 @@ fur
 scanner_test
 parser_test
 .env/
-
+*.dSYM/

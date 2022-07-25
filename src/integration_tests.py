@@ -49,26 +49,23 @@ class MemoryLeakTests(unittest.TestCase):
 
 def add_memory_leak_test(filename):
     def test(self):
-        with open(os.devnull, 'w') as devnull:
-            expected_return = 0
-            actual_return = subprocess.call(
-                [
-                    'valgrind',
-                    '--tool=memcheck',
-                    '--leak-check=yes',
-                    '--show-reachable=yes',
-                    '--num-callers=20',
-                    '--track-fds=yes',
-                    '--error-exitcode=42',
-                    '-q',
-                    './fur',
-                    os.path.join('test', filename),
-                ],
-                stdout=devnull,
-                stderr=devnull,
-            )
+        command = [
+            'valgrind',
+            '--tool=memcheck',
+            '--leak-check=yes',
+            '--show-reachable=yes',
+            '--num-callers=20',
+            '--track-fds=yes',
+            '--error-exitcode=42',
+            '-q',
+            './fur',
+            os.path.join('test', filename),
+        ]
 
-            self.assertEqual(expected_return, actual_return)
+        actual_return = subprocess.call(command)
+
+        expected_return = 0
+        self.assertEqual(expected_return, actual_return)
 
     setattr(MemoryLeakTests, 'test_' + filename[:-4], test)
 
@@ -81,6 +78,6 @@ filenames = (
 
 for filename in filenames:
     add_output_test(filename)
-    #add_memory_leak_test(filename)
+    add_memory_leak_test(filename)
 
 unittest.main()
