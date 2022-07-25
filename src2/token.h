@@ -4,6 +4,9 @@
 #include <stdlib.h>
 
 typedef enum {
+  TOKEN_INTEGER,
+  TOKEN_NAME,
+
   TOKEN_ERROR,
   TOKEN_EOF
 } TokenType;

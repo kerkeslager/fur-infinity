@@ -10,6 +10,8 @@ static void Token_print(Token self) {
 
   switch(self.type) {
     #define MAP(t) case t: sprintf(type, "%s", #t); break
+    MAP(TOKEN_INTEGER);
+    MAP(TOKEN_NAME);
     MAP(TOKEN_ERROR);
     MAP(TOKEN_EOF);
     #undef MAP
