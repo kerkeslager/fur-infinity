@@ -1,1 +1,1 @@
-  1 TOKEN_EOF        ""
+  1 TOKEN_EOF                ""

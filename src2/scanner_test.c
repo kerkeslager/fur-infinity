@@ -6,12 +6,14 @@
 #include "scanner.h"
 
 static void Token_print(Token self) {
-  char type[16];
+  char type[24];
 
   switch(self.type) {
     #define MAP(t) case t: sprintf(type, "%s", #t); break
     MAP(TOKEN_INTEGER);
     MAP(TOKEN_NAME);
+    MAP(TOKEN_OPEN_PAREN);
+    MAP(TOKEN_CLOSE_PAREN);
     MAP(TOKEN_ERROR);
     MAP(TOKEN_EOF);
     #undef MAP
@@ -20,7 +22,7 @@ static void Token_print(Token self) {
       assert(false);
   }
 
-  printf("%3zu %-16s \"", self.line, type);
+  printf("%3zu %-24s \"", self.line, type);
 
   for(size_t i = 0; i < self.length; i++) {
     printf("%c", self.text[i]);

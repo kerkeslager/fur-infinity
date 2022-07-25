@@ -1,0 +1,5 @@
+  1 TOKEN_NAME               "print"
+  1 TOKEN_OPEN_PAREN         "("
+  1 TOKEN_INTEGER            "1"
+  1 TOKEN_CLOSE_PAREN        ")"
+  1 TOKEN_EOF                ""
