@@ -90,11 +90,6 @@ def add_scanner_test(filename):
         with open(os.path.join('test','scanner',filename), 'r') as f:
             source = f.read()
 
-            # Some shells append a \n when you > to a file, and we don't want
-            # that to cause failures.
-            if source.endswith('\n'):
-                source = source[:-1]
-
         p = subprocess.Popen(
             (
                 './scanner_test',
