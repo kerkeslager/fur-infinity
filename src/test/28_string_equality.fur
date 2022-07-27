@@ -1,0 +1,15 @@
+print("'goodbye' == 'hello' => ", 'goodbye' == 'hello', '\n')
+print("'hello' == 'hello' => ", 'hello' == 'hello', '\n')
+print("'hello' == 'goodbye' => ", 'hello' == 'goodbye', '\n')
+
+print('"goodbye" == "hello" => ', "goodbye" == "hello", '\n')
+print('"hello" == "hello" => ', "hello" == "hello", '\n')
+print('"hello" == "goodbye" => ', "hello" == "goodbye", '\n')
+
+print('\'goodbye\' == "hello" => ', 'goodbye' == "hello", '\n')
+print('\'hello\' == "hello" => ', 'hello' == "hello", '\n')
+print('\'hello\' == "goodbye" => ', 'hello' == "goodbye", '\n')
+
+print('"goodbye" == \'hello\' => ', "goodbye" == 'hello', '\n')
+print('"hello" == \'hello\' => ', "hello" == 'hello', '\n')
+print('"hello" == \'goodbye\' => ', "hello" == 'goodbye', '\n')

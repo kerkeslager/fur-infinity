@@ -183,29 +183,31 @@ inline static Value equals(Value arg0, Value arg1) {
       return Value_fromBool(arg0.is_a == arg1.is_a);
 
     case TYPE_BOOLEAN:
-      return Value_fromBool(arg0.as.boolean == arg1.as.boolean);
+      return Value_fromBool(
+        arg1.is_a == TYPE_BOOLEAN &&
+        arg0.as.boolean == arg1.as.boolean
+      );
 
     case TYPE_INTEGER:
       return Value_fromBool(
-        arg0.is_a == arg1.is_a && arg0.as.integer == arg1.as.integer
+        arg1.is_a == TYPE_INTEGER &&
+        arg0.as.integer == arg1.as.integer
       );
+
+    case TYPE_OBJ:
+      return Value_fromBool(
+          arg1.is_a == TYPE_OBJ &&
+          Obj_equals(arg0.as.obj, arg1.as.obj)
+        );
 
     default:
       assert(false);
   }
 }
+
 inline static Value notEquals(Value arg0, Value arg1) {
-  if(arg0.is_a != arg1.is_a) {
-    return Value_fromBool(true);
-  }
-
-  switch(arg0.is_a) {
-    case TYPE_INTEGER:
-      return Value_fromBool(arg0.as.integer != arg1.as.integer);
-
-    default:
-      return Value_fromBool(false);
-  }
+  /* TODO Are there ways to optimzie this? */
+  return logicalNot(equals(arg0, arg1));
 }
 
 size_t Thread_run(Thread* self, Code* code, size_t index) {

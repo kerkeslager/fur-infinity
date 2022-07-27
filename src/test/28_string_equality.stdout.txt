@@ -1,0 +1,12 @@
+'goodbye' == 'hello' => false
+'hello' == 'hello' => true
+'hello' == 'goodbye' => false
+"goodbye" == "hello" => false
+"hello" == "hello" => true
+"hello" == "goodbye" => false
+'goodbye' == "hello" => false
+'hello' == "hello" => true
+'hello' == "goodbye" => false
+"goodbye" == 'hello' => false
+"hello" == 'hello' => true
+"hello" == 'goodbye' => false

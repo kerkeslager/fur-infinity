@@ -1,5 +1,7 @@
-#include "object.h"
 #include <stdio.h>
+#include <string.h>
+
+#include "object.h"
 
 inline static void Obj_init(Obj* self, ObjType type) {
   self->next = NULL;
@@ -40,6 +42,31 @@ void Obj_free(Obj* self) {
   }
 
   free(self);
+}
+
+bool ObjString_equals(ObjString* self, ObjString* other) {
+  assert(self->obj.type == OBJ_STRING);
+  assert(other->obj.type == OBJ_STRING);
+
+  return self->length == other->length &&
+    !strncmp(self->characters, other->characters, self->length);
+}
+
+bool Obj_equals(Obj* self, Obj* other) {
+  if(self == other) return true;
+
+  switch(self->type) {
+    case OBJ_CLOSURE:
+      assert(false);
+
+    case OBJ_NATIVE:
+      return other->type == OBJ_NATIVE &&
+        ((ObjNative*)self)->call == ((ObjNative*)other)->call;
+
+    case OBJ_STRING:
+      return other->type == OBJ_STRING &&
+        ObjString_equals((ObjString*)self, (ObjString*)other);
+  }
 }
 
 void ObjNative_printRepr(ObjNative* self) {

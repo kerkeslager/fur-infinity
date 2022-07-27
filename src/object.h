@@ -37,6 +37,7 @@ struct ObjString {
 inline static void Obj_init(Obj*, ObjType);
 void Obj_free(Obj*);
 void Obj_printRepr(Obj*);
+bool Obj_equals(Obj*, Obj*);
 
 ALLOCATE_ONE_DECL(ObjNative);
 void ObjNative_init(ObjNative*, Value (*call)(uint8_t, Value*));
@@ -45,6 +46,7 @@ ALLOCATE_ONE_DECL(ObjString);
 ALLOCATOR_DECL(ObjString);
 void ObjString_init(ObjString*, size_t, char*);
 void ObjString_free(ObjString*);
+bool ObjString_equals(ObjString*, ObjString*);
 
 Value nativePrint(uint8_t argc, Value* argv);
 
