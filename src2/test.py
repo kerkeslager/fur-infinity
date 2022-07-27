@@ -30,8 +30,6 @@ def add_output_test(filename):
         else:
             expected_stdout = b''
 
-        import ipdb; ipdb.set_trace()
-
         self.assertEqual(expected_stdout, actual_stdout)
 
         expected_stderr_path = os.path.join('test', 'integration', filename[:-3] + 'stderr.txt')
@@ -51,20 +49,22 @@ class MemoryLeakTests(unittest.TestCase):
 
 def add_memory_leak_test(filename):
     def test(self):
-        command = [
+        command = (
             'valgrind',
-            '--tool=memcheck',
-            '--leak-check=yes',
-            '--show-reachable=yes',
-            '--num-callers=20',
+            '--leak-check=full',
+            '--show-leak-kinds=all',
             '--track-fds=yes',
+            '--track-origins=yes',
             '--error-exitcode=42',
-            '-q',
             './fur',
             os.path.join('test', 'integration', filename),
-        ]
+        )
 
-        actual_return = subprocess.call(command)
+        actual_return = subprocess.call(
+            command,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
         expected_return = 0
         self.assertEqual(expected_return, actual_return)
