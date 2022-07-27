@@ -501,6 +501,8 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
           v.as.obj = (Obj*)n;
 
           Stack_push(&(self->stack), v);
+          /* Add to heap AFTER adding to stack, to be sure it doesn't get GC'ed */
+          Thread_addToHeap(self, (Obj*)n);
 
           index++;
         } break;
