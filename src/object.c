@@ -6,10 +6,15 @@ inline static void Obj_init(Obj* self, ObjType type) {
   self->type = type;
 }
 
+ALLOCATE_ONE_IMPL(ObjNative);
+
 void ObjNative_init(ObjNative* self, Value (*call)(uint8_t, Value*)) {
   Obj_init(&(self->obj), OBJ_NATIVE);
   self->call = call;
 }
+
+ALLOCATE_ONE_IMPL(ObjString);
+ALLOCATOR_IMPL(ObjString);
 
 void ObjString_init(ObjString* self, size_t length, char* characters) {
   Obj_init(&(self->obj), OBJ_STRING);

@@ -7,12 +7,13 @@
 #include "object.h"
 #include "code.h"
 #include "compiler.h"
+#include "memory.h"
 #include "parser.h"
 
 void Symbol_init(Symbol* self, size_t length, char* name) {
   assert(length <= 255);
   self->length = length;
-  self->name = malloc(length + 1);
+  self->name = allocateChars(length + 1);
   strncpy(self->name, name, length);
   self->name[length] = '\0';
 }
@@ -93,8 +94,7 @@ inline static size_t emitInstruction(Code* code, size_t line, Instruction i) {
 }
 
 inline static uint8_t emitString(Code* code, AtomNode* node) {
-  char* characters = malloc(node->length - 1);
-  assert(characters != NULL);
+  char* characters = allocateChars(node->length - 1);
 
   size_t tokenIndex = 0;
   size_t charactersCount = 0;
@@ -148,7 +148,7 @@ inline static uint8_t emitString(Code* code, AtomNode* node) {
    * significantly shorter than the lexeme, so it might be worthwhile
    * to realloc down. Let's revisit after Unicode support.
    */
-  ObjString* result = malloc(sizeof(ObjString));
+  ObjString* result = ObjString_allocate(1);
 
   ObjString_init(result, charactersCount, characters);
 

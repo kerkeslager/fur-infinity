@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "code.h"
+#include "memory.h"
 #include "value.h"
 
 typedef enum {
@@ -37,8 +38,11 @@ inline static void Obj_init(Obj*, ObjType);
 void Obj_free(Obj*);
 void Obj_printRepr(Obj*);
 
+ALLOCATE_ONE_DECL(ObjNative);
 void ObjNative_init(ObjNative*, Value (*call)(uint8_t, Value*));
 
+ALLOCATE_ONE_DECL(ObjString);
+ALLOCATOR_DECL(ObjString);
 void ObjString_init(ObjString*, size_t, char*);
 void ObjString_free(ObjString*);
 

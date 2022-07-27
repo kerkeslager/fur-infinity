@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "code.h"
+#include "memory.h"
 #include "thread.h"
 #include "value.h"
 
@@ -145,13 +146,14 @@ inline static Value concat(Value arg0, Value arg1) {
 
   size_t length = arg0s->length + arg1s->length;
 
-  char* characters = malloc(length + 1); // Add room for trailing null char
+  /* Add room for trailing null char */
+  char* characters = allocateChars(length + 1);
   *characters = '\0';
 
   strncat(characters, arg0s->characters, arg0s->length);
   strncat(characters, arg1s->characters, arg1s->length);
 
-  ObjString* s = malloc(sizeof(ObjString));
+  ObjString* s = ObjString_allocateOne();
   ObjString_init(s, length, characters);
 
   Value v;
@@ -493,7 +495,7 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
 
       case OP_NATIVE:
         {
-          ObjNative* n = malloc(sizeof(ObjNative));
+          ObjNative* n = ObjNative_allocateOne();
           ObjNative_init(n, NATIVE[Code_get(code, index)].call);
 
           Value v;

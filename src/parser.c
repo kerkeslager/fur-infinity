@@ -96,7 +96,7 @@ static Node* makeAtomNode(Token token) {
       assert(false); // TODO Better handling.
   }
 
-  AtomNode* node = malloc(sizeof(AtomNode));
+  AtomNode* node = AtomNode_allocateOne();
   node->node = makeNode(type, token.line);
   node->text = token.text;
   node->length = token.length;
@@ -114,14 +114,14 @@ static Node* makeUnaryNode(Token operator, Node* arg) {
       assert(false);
   }
 
-  UnaryNode* node = malloc(sizeof(UnaryNode));
+  UnaryNode* node = UnaryNode_allocateOne();
   node->node = makeNode(type, operator.line);
   node->arg = arg;
   return (Node*)node;
 }
 
 static Node* makeBinaryNode(NodeType type, size_t line, Node* arg0, Node* arg1) {
-  BinaryNode* node = malloc(sizeof(BinaryNode));
+  BinaryNode* node = BinaryNode_allocateOne();
   node->node = makeNode(type, line);
   node->arg0 = arg0;
   node->arg1 = arg1;
@@ -129,7 +129,7 @@ static Node* makeBinaryNode(NodeType type, size_t line, Node* arg0, Node* arg1) 
 }
 
 static Node* makeTernaryNode(NodeType type, size_t line, Node* arg0, Node* arg1, Node* arg2) {
-  TernaryNode* node = malloc(sizeof(TernaryNode));
+  TernaryNode* node = TernaryNode_allocateOne();
   node->node = makeNode(type, line);
   node->arg0 = arg0;
   node->arg1 = arg1;
@@ -235,7 +235,7 @@ static Node* parseCall(Scanner* scanner, size_t line) {
   Token start = Scanner_scan(scanner);
   assert(start.type == TOKEN_OPEN_PAREN);
 
-  ExpressionListNode* elNode = malloc(sizeof(ExpressionListNode));
+  ExpressionListNode* elNode = ExpressionListNode_allocateOne();
 
   Node_init((Node*)elNode, NODE_COMMA_SEPARATED_LIST, line);
   ExpressionListNode_init(elNode);
@@ -466,7 +466,7 @@ Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
       case TOKEN_OPEN_PAREN:
         {
           Node* arguments = parseCall(scanner, leftOperand->line);
-          BinaryNode* call = malloc(sizeof(BinaryNode));
+          BinaryNode* call = BinaryNode_allocateOne();
           Node_init((Node*)call, NODE_CALL, leftOperand->line);
 
           call->arg0 = leftOperand;
@@ -599,7 +599,7 @@ Node* parseExpressionList(Scanner* scanner, uint8_t expectedExitCount, TokenType
    * TODO Don't return an ExpressionList if it would contain only one
    * node. Instead just return the one node.
    */
-  ExpressionListNode* node = malloc(sizeof(ExpressionListNode));
+  ExpressionListNode* node = ExpressionListNode_allocateOne();
   ExpressionListNode_init(node);
 
   Token token = Scanner_peek(scanner);

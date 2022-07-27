@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 
+#include "memory.h"
 #include "scanner.h"
 
 typedef enum {
@@ -60,10 +61,14 @@ typedef struct {
   size_t length;
 } AtomNode;
 
+inline static ALLOCATE_ONE_IMPL(AtomNode);
+
 typedef struct {
   Node node;
   Node* arg;
 } UnaryNode;
+
+inline static ALLOCATE_ONE_IMPL(UnaryNode);
 
 // NODE_ADD, NODE_SUBTRACT, NODE_MULTIPLY, NODE_DIVIDE
 typedef struct {
@@ -72,6 +77,8 @@ typedef struct {
   Node* arg1;
 } BinaryNode;
 
+inline static ALLOCATE_ONE_IMPL(BinaryNode);
+
 typedef struct {
   Node node;
   Node* arg0;
@@ -79,12 +86,16 @@ typedef struct {
   Node* arg2;
 } TernaryNode;
 
+inline static ALLOCATE_ONE_IMPL(TernaryNode);
+
 typedef struct {
   Node node;
   size_t length;
   size_t capacity;
   Node** items;
 } ExpressionListNode;
+
+inline static ALLOCATE_ONE_IMPL(ExpressionListNode);
 
 /*
  * TODO It might be even better to just pass in source, and also hide

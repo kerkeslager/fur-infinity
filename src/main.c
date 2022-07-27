@@ -6,6 +6,7 @@
 
 #include "code.h"
 #include "compiler.h"
+#include "memory.h"
 #include "parser.h"
 #include "scanner.h"
 #include "thread.h"
@@ -421,7 +422,7 @@ static char* readFile(const char* path) {
   size_t fileSize = ftell(file);
   rewind(file);
 
-  char* buffer = (char*)malloc(fileSize + 1);
+  char* buffer = allocateChars(fileSize + 1);
 
   if (buffer == NULL) {
     fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
