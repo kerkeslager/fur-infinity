@@ -1,11 +1,11 @@
 all: clean code.o compiler.o object.o parser.o scanner.o thread.o value.o main.o
-	gcc -Wall -Wextra {code,compiler,object,parser,scanner,thread,value,main}.o -o fur
+	gcc -Wall -Wextra code.o compiler.o object.o parser.o scanner.o thread.o value.o main.o -o fur
 
 debug: clean code.o compiler.o object.o parser.o scanner.o thread.o value.o main.o
-	gcc -ggdb3 -Wall -Wextra {code,compiler,object,parser,scanner,thread,value,main}.o -o fur
+	gcc -ggdb3 -Wall -Wextra code.o compiler.o object.o parser.o scanner.o thread.o value.o main.o -o fur
 
 test: debug
-	python integration_tests.py
+	python3 integration_tests.py
 
 code.o:
 	gcc -c code.c -o code.o
