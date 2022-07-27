@@ -45,33 +45,14 @@ void Instruction_print(Instruction i) {
   }
 }
 
-void ObjList_init(ObjList* self) {
-  self->length = 0;
-  self->capacity = 0;
-  self->items = NULL;
-}
+LIST_IMPL_INIT_NO_PREALLOC(ObjList);
+LIST_IMPL_FREE_WITH_ITEMS(ObjList, Obj_free);
+LIST_IMPL_APPEND_NO_PREALLOC(ObjList, Obj*, 8);
 
-void ObjList_free(ObjList* self) {
-  for(size_t i = 0; i < self->length; i++) {
-    Obj_free(self->items[i]);
-  }
+LIST_IMPL_INIT_PREALLOC(LineRunList, LineRun, 8);
+LIST_IMPL_FREE_WITHOUT_ITEMS(LineRunList);
 
-  self->length = 0;
-  self->capacity = 0;
-  free(self->items);
-}
-
-void LineRunList_init(LineRunList* self) {
-  self->length = 0;
-  self->capacity = 8;
-  self->items = malloc(sizeof(LineRun) * self->capacity);
-}
-
-void LineRunList_free(LineRunList* self) {
-  free(self->items);
-}
-
-void LineRunList_append(LineRunList* self, size_t line) {
+void LineRunList_appendLine(LineRunList* self, size_t line) {
   // If the current line is the same as the previous, continue the run
   if(self->length > 0 && self->items[self->length - 1].line == line) {
     self->items[self->length - 1].run++;
@@ -93,35 +74,16 @@ void LineRunList_append(LineRunList* self, size_t line) {
   self->length++;
 }
 
-void InstructionList_init(InstructionList* self) {
-  /*
-   * We initialize the instruction list with an initial capacity of 16. Most dynamic
-   * arrays get capacity lazily, but we're doing this one eagerly because
-   * it's going to be used immediately at the call site. Initializing it
-   * eagerly also allows us to avoid an if-check when upsizing.
-   */
-  self->length = 0;
-  self->capacity = 16;
-  self->items = malloc(sizeof(uint8_t) * self->capacity);
-}
-
-void InstructionList_free(InstructionList* self) {
-  free(self->items);
-}
-
-size_t InstructionList_append(InstructionList* self, uint8_t byte) {
-  if(self->length == self->capacity) {
-    self->capacity *= 2;
-    self->items = realloc(self->items, sizeof(uint8_t) * self->capacity);
-
-    assert(self->items != NULL); // TODO Handle this.
-  }
-
-  size_t result = self->length;
-  self->items[self->length] = byte;
-  self->length++;
-  return result;
-}
+/*
+ * We initialize the instruction list with an initial capacity of 32. Most dynamic
+ * arrays get capacity lazily, but we're doing this one eagerly because
+ * it's going to be used immediately at the call site. Initializing it
+ * eagerly also allows us to avoid an if-check when upsizing.
+ */
+LIST_IMPL_INIT_PREALLOC(InstructionList,uint8_t,32);
+LIST_IMPL_FREE_WITHOUT_ITEMS(InstructionList);
+LIST_IMPL_LENGTH(InstructionList);
+LIST_IMPL_APPEND_PREALLOC(InstructionList,uint8_t);
 
 void Code_init(Code* self) {
   ObjList_init(&(self->interns));
@@ -136,8 +98,9 @@ void Code_free(Code* self) {
 }
 
 size_t Code_append(Code* self, uint8_t byte, size_t line) {
-  size_t result = InstructionList_append(&(self->instructions), byte);
-  LineRunList_append(&(self->lineRuns), line);
+  size_t result = InstructionList_length(&(self->instructions));
+  InstructionList_append(&(self->instructions), byte);
+  LineRunList_appendLine(&(self->lineRuns), line);
   return result;
 }
 
@@ -159,8 +122,6 @@ int32_t Code_getInt32(Code* self, size_t index) {
 size_t Code_getCurrent(Code* self) {
   return self->instructions.length;
 }
-
-LIST_APPEND_IMPL(ObjList, Obj*, 8);
 
 uint8_t Code_internObject(Code* self, Obj* intern) {
   /*
