@@ -1,0 +1,9 @@
+print('0 == false => ', 0 == false, '\n')
+print('1 == true => ', 1 == true, '\n')
+print('false == 0 => ', false == 0, '\n')
+print('true == 1 => ', true == 1, '\n')
+
+print('0 != false => ', 0 != false, '\n')
+print('1 != true => ', 1 != true, '\n')
+print('false != 0 => ', false != 0, '\n')
+print('true != 1 => ', true != 1, '\n')

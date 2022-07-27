@@ -1,0 +1,4 @@
+'hello' == 'good' + 'bye' => false
+'goodbye' == 'good' + 'bye' => true
+'hello' != 'good' + 'bye' => true
+'goodbye' != 'good' + 'bye' => false

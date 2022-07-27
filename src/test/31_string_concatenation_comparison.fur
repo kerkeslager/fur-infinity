@@ -1,0 +1,5 @@
+print("'hello' == 'good' + 'bye' => ", 'hello' == 'good' + 'bye', '\n')
+print("'goodbye' == 'good' + 'bye' => ", 'goodbye' == 'good' + 'bye', '\n')
+
+print("'hello' != 'good' + 'bye' => ", 'hello' != 'good' + 'bye', '\n')
+print("'goodbye' != 'good' + 'bye' => ", 'goodbye' != 'good' + 'bye', '\n')

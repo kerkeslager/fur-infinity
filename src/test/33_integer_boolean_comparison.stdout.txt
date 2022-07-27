@@ -1,0 +1,8 @@
+0 == false => false
+1 == true => false
+false == 0 => false
+true == 1 => false
+0 != false => true
+1 != true => true
+false != 0 => true
+true != 1 => true
