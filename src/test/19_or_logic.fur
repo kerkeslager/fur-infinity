@@ -1,0 +1,4 @@
+print('true or true => ', true or true, '\n')
+print('true or false => ', true or false, '\n')
+print('false or true => ', false or true, '\n')
+print('false or false => ', false or false, '\n')
