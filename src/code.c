@@ -51,6 +51,7 @@ LIST_IMPL_APPEND_NO_PREALLOC(ObjList, Obj*, 8);
 
 LIST_IMPL_INIT_PREALLOC(LineRunList, LineRun, 8);
 LIST_IMPL_FREE_WITHOUT_ITEMS(LineRunList);
+LIST_IMPL_APPEND_PREALLOC(LineRunList, LineRun);
 
 void LineRunList_appendLine(LineRunList* self, size_t line) {
   // If the current line is the same as the previous, continue the run
@@ -59,19 +60,11 @@ void LineRunList_appendLine(LineRunList* self, size_t line) {
     return;
   }
 
-  if(self->length == self->capacity) {
-    self->capacity *= 2;
-    self->items = realloc(self->items, sizeof(LineRun) * self->capacity);
-
-    assert(self->items != NULL); // TODO Handle this.
-  }
-
   LineRun lineRun;
   lineRun.line = line;
   lineRun.run = 1;
 
-  self->items[self->length] = lineRun;
-  self->length++;
+  LineRunList_append(self, lineRun);
 }
 
 /*
