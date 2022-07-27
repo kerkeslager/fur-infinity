@@ -1,0 +1,6 @@
+print('not true and false => ', not true and false, '\n')
+print('not false and false => ', not false and false, '\n')
+print('not true or true => ', not true or true, '\n')
+print('not false or true => ', not false or true, '\n')
+print('true or true and false => ', true or true and false, '\n')
+print('true or false and false => ', true or false and false, '\n')

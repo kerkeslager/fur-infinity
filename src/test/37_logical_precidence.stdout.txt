@@ -1,0 +1,6 @@
+not true and false => false
+not false and false => false
+not true or true => true
+not false or true => true
+true or true and false => true
+true or false and false => true
