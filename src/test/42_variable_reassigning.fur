@@ -1,0 +1,4 @@
+message = 'Hello, world\n'
+message = 'Goodnight, moon\n'
+
+print(message)

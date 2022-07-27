@@ -1,0 +1,15 @@
+message = if true:
+  'Hello, world\n'
+else
+  'Goodnight, moon\n'
+end
+
+print(message)
+
+message = if false:
+  'Goodbye, cruel world\n'
+else
+  'Good morning, Baltimore\n'
+end
+
+print(message)

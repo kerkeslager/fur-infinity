@@ -1,0 +1,20 @@
+if true:
+  print('left\n')
+else
+  print('right\n')
+end
+
+if false:
+  print('left\n')
+else
+  print('right\n')
+end
+
+if true:
+  print('only\n')
+end
+
+if false:
+  print('never\n')
+end
+
