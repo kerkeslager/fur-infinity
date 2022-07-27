@@ -160,6 +160,8 @@ size_t Code_getCurrent(Code* self) {
   return self->instructions.length;
 }
 
+LIST_APPEND_IMPL(ObjList, Obj*, 8);
+
 uint8_t Code_internObject(Code* self, Obj* intern) {
   /*
    * TODO Check for duplicates. It could be costly at compile time,
@@ -167,25 +169,9 @@ uint8_t Code_internObject(Code* self, Obj* intern) {
    */
 
   size_t result = self->interns.length;
-  assert(result < 256); // TODO Handle this.
+  assert(result < 256); /* TODO Handle this */
 
-  if(self->interns.length == self->interns.capacity) {
-    if(self->interns.capacity == 0) {
-      self->interns.capacity = 8;
-    } else {
-      self->interns.capacity = self->interns.capacity * 2;
-    }
-
-    self->interns.items = realloc(
-        self->interns.items,
-        sizeof(uint8_t) * self->interns.capacity
-    );
-
-    assert(self->interns.items != NULL);
-  }
-
-  self->interns.items[result] = intern;
-  self->interns.length++;
+  ObjList_append(&(self->interns), intern);
 
   return (uint8_t) result;
 }
