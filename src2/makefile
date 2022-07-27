@@ -8,8 +8,8 @@ test: clean
 	gcc -ggdb3 -D DEBUG -Wall -Wextra -c token.c -o token.o
 	gcc -ggdb3 -D DEBUG -Wall -Wextra -c scanner_test.c -o scanner_test.o
 	gcc -ggdb3 -D DEBUG -Wall -Wextra -c main.c -o main.o
-	gcc -ggdb3 -D DEBUG -Wall -Wextra {scanner,scanner_test,token}.o -o scanner_test
-	gcc -ggdb3 -D DEBUG -Wall -Wextra {main,scanner,token}.o -o fur
+	gcc -ggdb3 -D DEBUG -Wall -Wextra scanner.o scanner_test.o token.o -o scanner_test
+	gcc -ggdb3 -D DEBUG -Wall -Wextra main.o scanner.o token.o -o fur
 	python test.py
 
 clean:
