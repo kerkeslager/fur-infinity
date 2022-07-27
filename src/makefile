@@ -8,31 +8,31 @@ test: debug
 	python3 integration_tests.py
 
 code.o:
-	gcc -c code.c -o code.o
+	gcc -ggdb3 -c code.c -o code.o
 
 compiler.o:
-	gcc -c compiler.c -o compiler.o
+	gcc -ggdb3 -c compiler.c -o compiler.o
 
 main.o:
-	gcc -c main.c -o main.o
+	gcc -ggdb3 -c main.c -o main.o
 
 object.o:
-	gcc -c object.c -o object.o
+	gcc -ggdb3 -c object.c -o object.o
 
 parser.o:
-	gcc -c parser.c -o parser.o
+	gcc -ggdb3 -c parser.c -o parser.o
 
 parser_test.o:
-	gcc -c parser_test.c -o parser_test.o
+	gcc -ggdb3 -c parser_test.c -o parser_test.o
 
 scanner.o:
-	gcc -c scanner.c -o scanner.o
+	gcc -ggdb3 -c scanner.c -o scanner.o
 
 thread.o:
-	gcc -c thread.c -o thread.o
+	gcc -ggdb3 -c thread.c -o thread.o
 
 value.o:
-	gcc -c value.c -o value.o
+	gcc -ggdb3 -c value.c -o value.o
 
 clean: clean.o
 	rm -f fur
