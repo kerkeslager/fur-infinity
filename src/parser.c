@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 
 void NodeType_print(NodeType type) {
   switch(type) {
