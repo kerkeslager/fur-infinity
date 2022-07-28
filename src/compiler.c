@@ -702,8 +702,10 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * OP_CALL has already pointed the stack, so we just have to
          * assign the argument names to the stack values.
          */
-        assert(arguments->length <= UINT8_MAX);
-        uint8_t arity = (uint8_t)(arguments->length);
+        assert(arguments == NULL || arguments->length <= UINT8_MAX);
+        uint8_t arity = arguments == NULL ?
+          0 :
+          (uint8_t)(arguments->length);
 
         for(int i = 0; i < arity; i++) {
           assert(arguments->items[i]->type == NODE_IDENTIFIER);
