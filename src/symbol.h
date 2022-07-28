@@ -1,6 +1,8 @@
 #ifndef FUR_SYMBOL_H
 #define FUR_SYMBOL_H
 
+#include "stdint.h"
+
 typedef struct {
   char* name;
   uint8_t length;
