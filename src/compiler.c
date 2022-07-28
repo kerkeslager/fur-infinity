@@ -10,18 +10,6 @@
 #include "memory.h"
 #include "parser.h"
 
-void Symbol_init(Symbol* self, size_t length, char* name) {
-  assert(length <= 255);
-  self->length = length;
-  self->name = allocateChars(length + 1);
-  strncpy(self->name, name, length);
-  self->name[length] = '\0';
-}
-
-void Symbol_free(Symbol* self) {
-  free(self->name);
-}
-
 void SymbolStack_init(SymbolStack* self) {
   self->top = self->items;
 }

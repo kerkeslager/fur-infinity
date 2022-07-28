@@ -1,0 +1,12 @@
+true and 0 < 1 => true
+true or 0 < 1 => true
+true and 0 > 1 => false
+true or 0 > 1 => true
+true and 0 <= 1 => true
+true or 0 <= 1 => true
+true and 0 >= 1 => false
+true or 0 >= 1 => true
+true and 0 == 1 => false
+true or 0 == 1 => true
+true and 0 != 1 => true
+true or 0 != 1 => true

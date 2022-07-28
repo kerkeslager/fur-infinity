@@ -192,10 +192,16 @@ typedef struct {
 Node* parseExpression(Scanner*, Precedence minimumBindingPower);
 Node* parseExpressionList(Scanner*, uint8_t, TokenType*);
 
-static void ExpressionListNode_init(ExpressionListNode* self) {
+static void ExpressionListNode_init(
+    ExpressionListNode* self,
+    NodeType type,
+    size_t line) {
+  assert(type == NODE_EXPRESSION_LIST || type == NODE_COMMA_SEPARATED_LIST);
+
+  Node_init(&(self->node), type, line);
   self->length = 0;
   self->capacity = 0;
-  self->items = 0;
+  self->items = NULL;
 }
 
 static void ExpressionListNode_append(ExpressionListNode* self, Node* item) {
@@ -237,8 +243,7 @@ static Node* parseCall(Scanner* scanner, size_t line) {
 
   ExpressionListNode* elNode = ExpressionListNode_allocateOne();
 
-  Node_init((Node*)elNode, NODE_COMMA_SEPARATED_LIST, line);
-  ExpressionListNode_init(elNode);
+  ExpressionListNode_init(elNode, NODE_COMMA_SEPARATED_LIST, line);
 
   Token close = Scanner_peek(scanner);
 
@@ -248,6 +253,7 @@ static Node* parseCall(Scanner* scanner, size_t line) {
      * No need to call ExpressionListNode_snug because this is instantiated
      * with a null items pointer.
      */
+    Scanner_scan(scanner);
     return (Node*)elNode;
   }
 
@@ -272,23 +278,8 @@ Node* parseFunctionDefinition(Scanner* scanner, size_t line) {
   assert(token.type == TOKEN_IDENTIFIER);
   Node* name = makeAtomNode(token);
 
-  token = Scanner_peek(scanner);
+  token = Scanner_scan(scanner);
   assert(token.type == TOKEN_OPEN_PAREN);
-
-  /*
-   * TODO There are some inefficiencies introduced by this function,
-   * which is also used to parse argument lists for function calls.
-   * We want some code reuse here, but let's try and optimize it.
-   */
-  /*
-   * TODO Rename this function.
-   */
-  Node* arguments = parseCall(scanner, line);
-
-  for(size_t i = 0; i < ((ExpressionListNode*)arguments)->length; i++) {
-    Node* a = ((ExpressionListNode*)arguments)->items[i];
-    assert(a->type == NODE_IDENTIFIER);
-  }
 
   token = Scanner_scan(scanner);
   assert(token.type == TOKEN_CLOSE_PAREN);
@@ -303,7 +294,7 @@ Node* parseFunctionDefinition(Scanner* scanner, size_t line) {
   token = Scanner_scan(scanner);
   assert(token.type == TOKEN_END);
 
-  return makeTernaryNode(NODE_FN_DEF, line, name, arguments, body);
+  return makeTernaryNode(NODE_FN_DEF, line, name, NULL, body);
 }
 
 Node* parseIf(Scanner* scanner, size_t line) {
@@ -594,34 +585,55 @@ void Node_free(Node* self) {
   free(self);
 }
 
+inline static bool isExpectedExit(TokenType t, uint8_t expectedExitCount, TokenType* expectedExits) {
+  switch(t) {
+    case TOKEN_ELSE:
+    case TOKEN_END:
+    case TOKEN_EOF:
+      for(uint8_t i = 0; i < expectedExitCount; i++) {
+        if(t == expectedExits[i]) {
+          return true;
+        }
+      }
+      assert(false);
+
+    default:
+      return false;
+  }
+}
+
+
 Node* parseExpressionList(Scanner* scanner, uint8_t expectedExitCount, TokenType* expectedExits) {
   /*
    * TODO Don't return an ExpressionList if it would contain only one
    * node. Instead just return the one node.
    */
-  ExpressionListNode* node = ExpressionListNode_allocateOne();
-  ExpressionListNode_init(node);
-
   Token token = Scanner_peek(scanner);
-  Node_init((Node*)node, NODE_EXPRESSION_LIST, token.line);
+
+  if(isExpectedExit(token.type, expectedExitCount, expectedExits)) {
+    return NULL;
+  }
+
+  Node* first = parseExpression(scanner, PREC_ANY);
+
+  token = Scanner_peek(scanner);
+
+  if(isExpectedExit(token.type, expectedExitCount, expectedExits)) {
+    return first;
+  }
+
+  ExpressionListNode* node = ExpressionListNode_allocateOne();
+  ExpressionListNode_init(node, NODE_EXPRESSION_LIST, first->line);
+  ExpressionListNode_append(node, first);
 
   for(;;) {
-    switch(token.type) {
-      case TOKEN_ELSE:
-      case TOKEN_END:
-      case TOKEN_EOF:
-        for(uint8_t i = 0; i < expectedExitCount; i++) {
-          if(token.type == expectedExits[i]) {
-            ExpressionListNode_snug(node);
-            return (Node*)node;
-          }
-        }
-        assert(false);
-
-      default:
-        ExpressionListNode_append(node, parseExpression(scanner, PREC_ANY));
-        token = Scanner_peek(scanner);
+    if(isExpectedExit(token.type, expectedExitCount, expectedExits)) {
+      ExpressionListNode_snug(node);
+      return (Node*)node;
     }
+
+    ExpressionListNode_append(node, parseExpression(scanner, PREC_ANY));
+    token = Scanner_peek(scanner);
   }
 }
 

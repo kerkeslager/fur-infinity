@@ -3,17 +3,9 @@
 
 #include "code.h"
 #include "parser.h"
+#include "symbol.h"
 
 #define MAX_SYMBOLSTACK_DEPTH 256
-
-typedef struct {
-  char* name;
-  uint8_t length;
-} Symbol;
-
-void Symbol_init(Symbol*, size_t length, char*);
-void Symbol_free(Symbol*);
-bool Symbol_equal(Symbol*, Symbol*);
 
 typedef struct {
   Symbol items[MAX_SYMBOLSTACK_DEPTH];

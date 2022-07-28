@@ -136,7 +136,21 @@ static void printNode(Node* node) {
       break;
 
     case NODE_FN_DEF:
-      printTernaryNode("def", (TernaryNode*)node);
+      {
+        TernaryNode* tNode = (TernaryNode*)node;
+        printf("(def ");
+        printNode(tNode->arg0);
+
+        if(tNode->arg1 == NULL) {
+          printf(" () ");
+        } else {
+          assert(false);
+        }
+
+        printNode(tNode->arg2);
+
+        printf(")");
+      }
       break;
 
     case NODE_COMMA_SEPARATED_LIST:

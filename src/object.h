@@ -5,6 +5,7 @@
 
 #include "code.h"
 #include "memory.h"
+#include "symbol.h"
 #include "value.h"
 
 typedef enum {
@@ -21,6 +22,8 @@ struct Obj {
 typedef struct {
   Obj obj;
   Code* code;
+  Symbol* name;
+  uint8_t arity;
 } ObjClosure;
 
 typedef struct {
@@ -38,6 +41,9 @@ inline static void Obj_init(Obj*, ObjType);
 void Obj_free(Obj*);
 void Obj_printRepr(Obj*);
 bool Obj_equals(Obj*, Obj*);
+
+ALLOCATE_ONE_DECL(ObjClosure);
+void ObjClosure_init(ObjClosure*, Symbol*, uint8_t, Code*);
 
 ALLOCATE_ONE_DECL(ObjNative);
 void ObjNative_init(ObjNative*, Value (*call)(uint8_t, Value*));

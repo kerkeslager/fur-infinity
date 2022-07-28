@@ -8,6 +8,15 @@ inline static void Obj_init(Obj* self, ObjType type) {
   self->type = type;
 }
 
+ALLOCATE_ONE_IMPL(ObjClosure);
+
+void ObjClosure_init(ObjClosure* self, Symbol* name, uint8_t arity, Code* code) {
+  Obj_init(&(self->obj), OBJ_CLOSURE);
+  self->name = name;
+  self->arity = arity;
+  self->code = code;
+}
+
 ALLOCATE_ONE_IMPL(ObjNative);
 
 void ObjNative_init(ObjNative* self, Value (*call)(uint8_t, Value*)) {
