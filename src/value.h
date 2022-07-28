@@ -35,11 +35,6 @@ static bool isFalse(Value v) {
   return v.is_a == TYPE_BOOLEAN && !(v.as.boolean);
 }
 
-
-static const Value VALUE_NIL = {
-  TYPE_NIL
-};
-
 /*
  * TODO Profile storing a bool in the union instead. It requires more
  * comparisons to do equality, but I suspect the simplicity of branching

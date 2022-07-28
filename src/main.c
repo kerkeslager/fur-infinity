@@ -328,8 +328,6 @@ Value runString(
     Thread* thread,
     Options options,
     char* source,
-    int argc,
-    char** argv,
     size_t startLine) {
 
   /*
@@ -405,8 +403,6 @@ static int repl(Options options) {
       &thread,
       options,
       source,     // The "source code" read from the repl
-      0,          // Don't pass in any command line arguments
-      NULL,       // The empty argument array
       lineNumber  // The line number to start on
     );
 
@@ -457,7 +453,7 @@ static char* readFile(const char* path) {
   return buffer;
 }
 
-int runFile(Options options, char* filename, int argc, char** argv) {
+int runFile(Options options, char* filename) {
   char* source = readFile(filename);
 
   Runtime runtime;
@@ -469,16 +465,7 @@ int runFile(Options options, char* filename, int argc, char** argv) {
   Thread thread;
   Thread_init(&thread);
 
-  Value result = runString(
-      &compiler,
-      &code,
-      &thread,
-      options,
-      source,
-      argc,
-      argv,
-      1
-  );
+  runString(&compiler, &code, &thread, options, source, 1);
 
   Compiler_free(&compiler);
   Code_free(&code);
@@ -555,17 +542,14 @@ int main(int argc, char** argv) {
         Thread thread;
         Thread_init(&thread);
 
-        Value result = runString(
+        runString(
           &compiler,
           &code,
           &thread,
           options,
           argv[i],      // Use the argument as the source
-          argc - i - 1, // Pass in remaining arguments as command line args
-          argv + i + 1,
           1
         );
-
 
         Compiler_free(&compiler);
         Code_free(&code);
@@ -612,12 +596,7 @@ int main(int argc, char** argv) {
         }
       }
     } else {
-      return runFile(
-          options,
-          argv[i],      // Fur source file name
-          argc - i - 1, // Number of arguments after filename
-          argv + i + 1  // Remaining arguments after filename
-      );
+      return runFile(options, argv[i]);
     }
   }
 

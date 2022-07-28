@@ -1,3 +1,6 @@
+CC = gcc
+CFLAGS = -Wall -Wextra -ggdb3
+
 all: clean code.o compiler.o object.o parser.o runtime.o scanner.o symbol.o thread.o value.o main.o
 	gcc -Wall -Wextra code.o compiler.o object.o parser.o runtime.o scanner.o symbol.o thread.o value.o main.o -o fur
 
@@ -6,39 +9,6 @@ debug: clean code.o compiler.o object.o parser.o runtime.o scanner.o symbol.o th
 
 test: debug
 	python3 integration_tests.py
-
-code.o:
-	gcc -ggdb3 -c code.c -o code.o
-
-compiler.o:
-	gcc -ggdb3 -c compiler.c -o compiler.o
-
-main.o:
-	gcc -ggdb3 -c main.c -o main.o
-
-object.o:
-	gcc -ggdb3 -c object.c -o object.o
-
-parser.o:
-	gcc -ggdb3 -c parser.c -o parser.o
-
-parser_test.o:
-	gcc -ggdb3 -c parser_test.c -o parser_test.o
-
-runtime.o:
-	gcc -ggdb3 -c runtime.c -o runtime.o
-
-scanner.o:
-	gcc -ggdb3 -c scanner.c -o scanner.o
-
-symbol.o:
-	gcc -ggdb3 -c symbol.c -o symbol.o
-
-thread.o:
-	gcc -ggdb3 -c thread.c -o thread.o
-
-value.o:
-	gcc -ggdb3 -c value.c -o value.o
 
 clean: clean.o
 	rm -f fur

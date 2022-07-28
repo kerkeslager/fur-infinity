@@ -79,7 +79,7 @@ bool Obj_equals(Obj* self, Obj* other) {
 }
 
 void ObjNative_printRepr(ObjNative* self) {
-  printf("<native>");
+  printf("<native %p>", (void*)self);
 }
 
 void ObjString_printRepr(ObjString* self) {

@@ -135,7 +135,6 @@ inline static Obj* makeObjClosure(Compiler* self, Symbol* name, Node* arguments,
 inline static Obj* makeObjString(AtomNode* node) {
   char* characters = allocateChars(node->length - 1);
 
-  size_t tokenIndex = 0;
   size_t charactersCount = 0;
 
   /*
@@ -709,7 +708,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
            */
           result = emitNode(self, code, arguments->items[0], true);
 
-          for(int i = 1; i < arguments->length; i++) {
+          for(size_t i = 1; i < arguments->length; i++) {
             emitNode(self, code, arguments->items[i], true);
           }
 

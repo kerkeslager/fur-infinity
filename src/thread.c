@@ -256,8 +256,11 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
         index++;
         break;
       case OP_NIL:
-        Stack_push(&(self->stack), VALUE_NIL);
-        break;
+        {
+          Value nil;
+          nil.is_a = TYPE_NIL;
+          Stack_push(&(self->stack), nil);
+        } break;
 
       case OP_TRUE:
         Stack_push(&(self->stack), Value_fromBool(true));
