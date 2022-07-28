@@ -56,7 +56,6 @@ bool ObjString_equals(ObjString*, ObjString*);
 
 Value nativePrint(uint8_t argc, Value* argv);
 
-
 typedef struct {
   const char* name;
   Value (*call)(uint8_t, Value*);

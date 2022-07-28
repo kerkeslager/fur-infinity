@@ -10,6 +10,8 @@
 #include "memory.h"
 #include "parser.h"
 
+static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn);
+
 void SymbolStack_init(SymbolStack* self) {
   self->top = self->items;
 }
@@ -42,8 +44,20 @@ Symbol SymbolStack_peek(SymbolStack* self, uint8_t depth) {
   return *(self->top - 1 - depth);
 }
 
+Symbol makeSymbolFromNode(Node* node) {
+  assert(node != NULL && node->type == NODE_IDENTIFIER);
+  AtomNode* aNode = (AtomNode*)node;
+
+  assert(aNode->length <= UINT8_MAX);
+
+  Symbol result;
+  Symbol_init(&result, aNode->length, aNode->text);
+  return result;
+}
+
 void Compiler_init(Compiler* self) {
   SymbolStack_init(&(self->stack));
+  self->scope = 0;
 }
 
 void Compiler_free(Compiler* self) {
@@ -81,7 +95,54 @@ inline static size_t emitInstruction(Code* code, size_t line, Instruction i) {
   return emitByte(code, line, (uint8_t)i);
 }
 
-inline static uint8_t emitString(Code* code, AtomNode* node) {
+inline static Obj* makeObjClosure(Compiler* self, Symbol* name, Node* arguments, Node* body) {
+  /* Pretty unlikely we go this deep, but it doesn't hurt to check it. */
+  assert(self->scope < SIZE_MAX);
+  self->scope++;
+
+  /*
+   * TODO Allow name == NULL, which we will need for lambdas.
+   */
+  assert(name != NULL);
+
+  /*
+   * If arguments == NULL, there are no arguments.
+   * If arguments->type == NODE_IDENTIFIER, there is one argument.
+   * If arguments->type == NODE_COMMA_SEPARATED_LIST, there are multiple arguments.
+   */
+  assert(arguments == NULL ||
+      arguments->type == NODE_IDENTIFIER ||
+      arguments->type == NODE_COMMA_SEPARATED_LIST);
+
+  /*
+   * TODO For now we only support no-argument functions.
+   */
+  assert(arguments == NULL);
+
+  if(body == NULL) {
+    assert(false); /* TODO Allow empty function bodies (just return nil). */
+  }
+
+  /*
+   * TODO Code_init does a few things which aren't great for functions.
+   * Most notably, code is maintaining a separate list of interned
+   * strings, which should probably be shared by the whole runtime.
+   */
+  Code* functionCode = Code_allocateOne();
+  Code_init(functionCode);
+
+  emitNode(self, functionCode, body, true);
+
+  /* TODO This line number isn't really right */
+  emitInstruction(functionCode, body->line, OP_RETURN);
+  self->scope--;
+
+  ObjClosure* result = ObjClosure_allocateOne();
+  ObjClosure_init(result, name, 0, functionCode);
+  return (Obj*)result;
+}
+
+inline static Obj* makeObjString(AtomNode* node) {
   char* characters = allocateChars(node->length - 1);
 
   size_t tokenIndex = 0;
@@ -140,7 +201,7 @@ inline static uint8_t emitString(Code* code, AtomNode* node) {
 
   ObjString_init(result, charactersCount, characters);
 
-  return Code_internObject(code, (Obj*)result);
+  return (Obj*)result;
 }
 
 inline static void emitInteger(Code* code, size_t line, int32_t integer) {
@@ -208,17 +269,59 @@ void Compiler_patchJumpToCurrent(Compiler* self, Code* code, size_t jumpIndex) {
   Compiler_patchJump(self, code, jumpIndex, code->instructions.length);
 }
 
-size_t emitFunction(Code* code, Code* functionCode) {
-  assert(false);
-  return 0;
-}
-
 inline static size_t emitBasic(Code* code, size_t line, Instruction i, bool emitReturn) {
   if(emitReturn) {
     return emitInstruction(code, line, i);
   } else {
     return Code_getCurrent(code);
   }
+}
+
+/*
+ * TODO This shoudl take a Symbol* rather than length and name. That Symbol*
+ * should be from the Symbol Table and guaranteed to be pointer-comparable.
+ */
+void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t line, size_t nameLength, char* name) {
+  /*
+   * We are looking to see if there is an existing "declaration"
+   * for this variable, which would cause it to have a location on
+   * the compiler stack. If it does, the location of the variable
+   * on the thread stack is the same as the location of the symbol
+   * on the compiler stack (when read from the bottom).
+   */
+  for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
+    if(s->length == nameLength &&
+        !strncmp(s->name, name, nameLength)) {
+      /*
+       * TODO We aren't allowing function definitions to assign over
+       * existing variables, but we should give some reasonable error.
+       */
+      /*
+       * TODO We also need to check this in reverse: are we assigning
+       * over a function definition? We don't want to allow that.
+       */
+      assert(allowReassignment);
+      emitByte(code, line, (uint8_t)OP_SET);
+      emitByte(code, line, s - (self->stack.items));
+    }
+  }
+
+  /*
+   * We only get here if the symbol is not on the stack, meaning
+   * the compiler has not seen it before.
+   *
+   * This is the implicit "declaration" case of a variable. If the
+   * variable has not been assigned before, we emit no instructions,
+   * because the value we want to store in the variable is already
+   * on the top of the stack, which is where we will store the
+   * variable. However, we must record the stack location *in the
+   * compiler* so that we can emit instructions that reference
+   * this stack location by number.
+   */
+  assert(nameLength < UINT8_MAX);
+  Symbol s;
+  Symbol_init(&s, nameLength, name);
+  SymbolStack_push(&(self->stack), s);
 }
 
 /*
@@ -377,7 +480,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
           number = number * 10 + digit;
         }
 
-        size_t result = emitByte(code, node->line, (uint8_t)OP_INTEGER);
+        size_t result = emitInstruction(code, node->line, OP_INTEGER);
         emitInteger(code, node->line, number);
         return result;
       } break;
@@ -386,8 +489,10 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
       {
         if(!emitReturn) return Code_getCurrent(code);
 
-        uint8_t index = emitString(code, (AtomNode*)node);
-        size_t result = emitByte(code, node->line, (uint8_t)OP_STRING);
+        Obj* obj = makeObjString((AtomNode*)node);
+
+        uint8_t index = Code_internObject(code, (Obj*)obj);
+        size_t result = emitInstruction(code, node->line, OP_STRING);
         emitByte(code, node->line, index);
         return result;
       } break;
@@ -542,47 +647,17 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
 
         AtomNode* targetNode = ((AtomNode*)(bNode->arg0));
 
-        /*
-         * We are looking to see if there is an existing "declaration"
-         * for this variable, which would cause it to have a location on
-         * the compiler stack. If it does, the location of the variable
-         * on the thread stack is the same as the location of the symbol
-         * on the compiler stack (when read from the bottom).
-         */
-        for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
-          if(s->length == targetNode->length &&
-              !strncmp(s->name, targetNode->text, s->length)) {
-            emitByte(code, node->line, (uint8_t)OP_SET);
-            emitByte(code, node->line, s - (self->stack.items));
-
-            if(emitReturn) emitByte(code, node->line, (uint8_t)OP_NIL);
-            return result;
-          }
-        }
-
-        /*
-         * We only get here if the symbol is not on the stack, meaning
-         * the compiler has not seen it before.
-         *
-         * This is the implicit "declaration" case of a variable. If the
-         * variable has not been assigned before, we emit no instructions,
-         * because the value we want to store in the variable is already
-         * on the top of the stack, which is where we will store the
-         * variable. However, we must record the stack location *in the
-         * compiler* so that we can emit instructions that reference
-         * this stack location by number.
-         */
-        assert(targetNode->length < 255);
-        Symbol s;
-        Symbol_init(
-            &s,
+        emitAssignment(
+            self,
+            code,
+            true, /* Allow reassignment */
+            node->line,
             targetNode->length,
             targetNode->text
-            );
-
-        SymbolStack_push(&(self->stack), s);
+          );
 
         if(emitReturn) emitInstruction(code, node->line, OP_NIL);
+
         return result;
       }
 
@@ -671,111 +746,36 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
 
     case NODE_FN_DEF:
       {
-        /*
-         * TODO Should we pull this into a separate compiler?
-         */
-        TernaryNode* tNode = (TernaryNode*)node;
-
-        assert(tNode->arg0->type == NODE_IDENTIFIER);
-        AtomNode* name = (AtomNode*)(tNode->arg0);
-
-        assert(tNode->arg1 == NULL || tNode->arg1->type == NODE_COMMA_SEPARATED_LIST);
-        ExpressionListNode* arguments = (ExpressionListNode*)(tNode->arg1);
-
-        Node* body = tNode->arg2;
+        Symbol name = makeSymbolFromNode(((TernaryNode*)node)->arg0);
 
         /*
-         * First we compile the code for the function, then we assign it
-         * to a local variable.
+         * TODO Get this from somewhere where it will be comparable.
          */
+        Symbol* namePtr = malloc(sizeof(Symbol));
+        *namePtr = name;
 
-        /*
-         * TODO Code_init does a few things which aren't great for functions.
-         * Most notably, code is maintaining a separate list of interned
-         * strings, which should probably be shared by the whole runtime.
-         */
-        Code* functionCode = Code_allocateOne();
-        Code_init(functionCode);
+        Obj* obj = makeObjClosure(
+          self,
+          namePtr,
+          ((TernaryNode*)node)->arg1,
+          ((TernaryNode*)node)->arg2
+        );
 
-        /*
-         * The values for the arguments are already on the stack, and
-         * OP_CALL has already pointed the stack, so we just have to
-         * assign the argument names to the stack values.
-         */
-        assert(arguments == NULL || arguments->length <= UINT8_MAX);
-        uint8_t arity = arguments == NULL ?
-          0 :
-          (uint8_t)(arguments->length);
+        uint8_t index = Code_internObject(code, obj);
 
-        for(int i = 0; i < arity; i++) {
-          assert(arguments->items[i]->type == NODE_IDENTIFIER);
-          AtomNode* a = (AtomNode*)(arguments->items[i]);
+        /* TODO Obviously OP_STRING should be OP_OBJ now */
+        size_t result = emitInstruction(code, node->line, OP_STRING);
+        emitByte(code, node->line, index);
 
-          Symbol s;
-          Symbol_init(
-              &s,
-              a->length,
-              a->text
-            );
-          SymbolStack_push(&(self->stack), s);
-        }
+        emitAssignment(
+            self,
+            code,
+            false, /* Don't allow reassignment */
+            node->line,
+            name.length,
+            name.name);
 
-        emitNode(self, functionCode, body, true);
-
-        /* TODO This line isn't really right */
-        emitInstruction(functionCode, body->line, OP_RETURN);
-
-        size_t result = emitFunction(code, functionCode);
-
-        /*
-         * Pop off the argument symbols from the symbol stack, since they are
-         * no longer in scope.
-         */
-        for(int i = 0; i < arity; i++) {
-          SymbolStack_pop(&(self->stack));
-        }
-
-        for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
-          if(s->length == name->length &&
-              !strncmp(s->name, name->text, s->length)) {
-            /*
-             * We don't allow redefining functions at this time.
-             */
-            assert(false);
-
-            /*
-             * TODO This code doesn't catch the following case:
-             *
-             * def foo():
-             *   ...
-             * end
-             *
-             * foo = 1
-             */
-          }
-        }
-
-        /*
-         * We only get here if the symbol is not on the stack, meaning
-         * the compiler has not seen it before.
-         *
-         * This is the implicit "declaration" case of a variable. If the
-         * variable has not been assigned before, we emit no instructions,
-         * because the value we want to store in the variable is already
-         * on the top of the stack, which is where we will store the
-         * variable. However, we must record the stack location *in the
-         * compiler* so that we can emit instructions that reference
-         * this stack location by number.
-         */
-        assert(name->length < 255);
-        Symbol s;
-        Symbol_init(
-            &s,
-            name->length,
-            name->text
-            );
-
-        SymbolStack_push(&(self->stack), s);
+        if(emitReturn) emitInstruction(code, node->line, OP_NIL);
 
         return result;
       }

@@ -117,10 +117,23 @@ size_t Code_getCurrent(Code* self) {
 }
 
 uint8_t Code_internObject(Code* self, Obj* intern) {
-  /*
-   * TODO Check for duplicates. It could be costly at compile time,
-   * but the payoff at run time is obvious.
-   */
+  switch(intern->type) {
+    case OBJ_CLOSURE:
+      /*
+       * There can't really be duplicate closures.
+       */
+      break;
+
+    case OBJ_STRING:
+      /*
+       * TODO Check for duplicates. It could be costly at compile time,
+       * but the payoff at run time is obvious.
+       */
+      break;
+
+    default:
+      assert(false);
+  }
 
   size_t result = self->interns.length;
   assert(result < 256); /* TODO Handle this */
