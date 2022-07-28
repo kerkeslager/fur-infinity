@@ -4,8 +4,9 @@
 #include "memory.h"
 #include "symbol.h"
 
-void Symbol_init(Symbol* self, size_t length, char* name) {
-  assert(length <= 255);
+void Symbol_init(Symbol* self, uint32_t h, size_t length, char* name) {
+  assert(length <= UINT8_MAX);
+  self->hash = h;
   self->length = length;
   self->name = allocateChars(length + 1);
   strncpy(self->name, name, length);

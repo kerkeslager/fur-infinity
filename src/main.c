@@ -380,8 +380,10 @@ static int repl(Options options) {
    * Eventually we'll probably want a consistent runtime to manage
    * multiple threads and modules as well.
    */
+  Runtime runtime;
+  Runtime_init(&runtime);
   Compiler compiler;
-  Compiler_init(&compiler);
+  Compiler_init(&compiler, &runtime);
   Code code;
   Code_init(&code);
   Thread thread;
@@ -420,6 +422,7 @@ static int repl(Options options) {
   Compiler_free(&compiler);
   Code_free(&code);
   Thread_free(&thread);
+  Runtime_free(&runtime);
 
   return 0;
 }
@@ -457,8 +460,10 @@ static char* readFile(const char* path) {
 int runFile(Options options, char* filename, int argc, char** argv) {
   char* source = readFile(filename);
 
+  Runtime runtime;
+  Runtime_init(&runtime);
   Compiler compiler;
-  Compiler_init(&compiler);
+  Compiler_init(&compiler, &runtime);
   Code code;
   Code_init(&code);
   Thread thread;
@@ -478,6 +483,7 @@ int runFile(Options options, char* filename, int argc, char** argv) {
   Compiler_free(&compiler);
   Code_free(&code);
   Thread_free(&thread);
+  Runtime_free(&runtime);
   free(source);
 
   return 0;
@@ -540,8 +546,10 @@ int main(int argc, char** argv) {
           return 1;
         }
 
+        Runtime runtime;
+        Runtime_init(&runtime);
         Compiler compiler;
-        Compiler_init(&compiler);
+        Compiler_init(&compiler, &runtime);
         Code code;
         Code_init(&code);
         Thread thread;
@@ -562,6 +570,7 @@ int main(int argc, char** argv) {
         Compiler_free(&compiler);
         Code_free(&code);
         Thread_free(&thread);
+        Runtime_free(&runtime);
 
         return 0;
       } else if(argv[i][1] == '-') {

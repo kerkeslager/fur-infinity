@@ -1,8 +1,8 @@
-all: clean code.o compiler.o object.o parser.o scanner.o symbol.o thread.o value.o main.o
-	gcc -Wall -Wextra code.o compiler.o object.o parser.o scanner.o symbol.o thread.o value.o main.o -o fur
+all: clean code.o compiler.o object.o parser.o runtime.o scanner.o symbol.o thread.o value.o main.o
+	gcc -Wall -Wextra code.o compiler.o object.o parser.o runtime.o scanner.o symbol.o thread.o value.o main.o -o fur
 
-debug: clean code.o compiler.o object.o parser.o scanner.o symbol.o thread.o value.o main.o
-	gcc -ggdb3 -Wall -Wextra code.o compiler.o object.o parser.o scanner.o symbol.o thread.o value.o main.o -o fur
+debug: clean code.o compiler.o object.o parser.o runtime.o scanner.o symbol.o thread.o value.o main.o
+	gcc -ggdb3 -Wall -Wextra code.o compiler.o object.o parser.o runtime.o scanner.o symbol.o thread.o value.o main.o -o fur
 
 test: debug
 	python3 integration_tests.py
@@ -24,6 +24,9 @@ parser.o:
 
 parser_test.o:
 	gcc -ggdb3 -c parser_test.c -o parser_test.o
+
+runtime.o:
+	gcc -ggdb3 -c runtime.c -o runtime.o
 
 scanner.o:
 	gcc -ggdb3 -c scanner.c -o scanner.o

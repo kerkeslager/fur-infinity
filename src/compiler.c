@@ -17,13 +17,10 @@ void SymbolStack_init(SymbolStack* self) {
 }
 
 void SymbolStack_free(SymbolStack* self) {
-  for(Symbol* s = self->items; s < self->top; s++) {
-    Symbol_free(s);
-  }
-  self->top = self->items;
+  free(self->items);
 }
 
-void SymbolStack_push(SymbolStack* self, Symbol value) {
+void SymbolStack_push(SymbolStack* self, Symbol* value) {
   // TODO Handle this.
   assert((self->top - self->items) < MAX_SYMBOLSTACK_DEPTH);
 
@@ -31,37 +28,31 @@ void SymbolStack_push(SymbolStack* self, Symbol value) {
   self->top++;
 }
 
-Symbol SymbolStack_pop(SymbolStack* self) {
+Symbol* SymbolStack_pop(SymbolStack* self) {
   assert(self->top > self->items);
 
   self->top--;
   return *(self->top);
 }
 
-Symbol SymbolStack_peek(SymbolStack* self, uint8_t depth) {
+Symbol* SymbolStack_peek(SymbolStack* self, uint8_t depth) {
   assert(self->top - depth > self->items);
 
   return *(self->top - 1 - depth);
 }
 
-Symbol makeSymbolFromNode(Node* node) {
-  assert(node != NULL && node->type == NODE_IDENTIFIER);
-  AtomNode* aNode = (AtomNode*)node;
-
-  assert(aNode->length <= UINT8_MAX);
-
-  Symbol result;
-  Symbol_init(&result, aNode->length, aNode->text);
-  return result;
-}
-
-void Compiler_init(Compiler* self) {
+void Compiler_init(Compiler* self, Runtime* runtime) {
   SymbolStack_init(&(self->stack));
+  self->runtime = runtime;
   self->scope = 0;
 }
 
 void Compiler_free(Compiler* self) {
   SymbolStack_free(&(self->stack));
+}
+
+Symbol* Compiler_getSymbol(Compiler* self, size_t length, char* name) {
+  return Runtime_getSymbol(self->runtime, length, name);
 }
 
 inline static size_t emitByte(Code* code, size_t line, uint8_t byte) {
@@ -281,7 +272,7 @@ inline static size_t emitBasic(Code* code, size_t line, Instruction i, bool emit
  * TODO This shoudl take a Symbol* rather than length and name. That Symbol*
  * should be from the Symbol Table and guaranteed to be pointer-comparable.
  */
-void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t line, size_t nameLength, char* name) {
+void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t line, Symbol* name) {
   /*
    * We are looking to see if there is an existing "declaration"
    * for this variable, which would cause it to have a location on
@@ -289,9 +280,8 @@ void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t l
    * on the thread stack is the same as the location of the symbol
    * on the compiler stack (when read from the bottom).
    */
-  for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
-    if(s->length == nameLength &&
-        !strncmp(s->name, name, nameLength)) {
+  for(Symbol** s = self->stack.top - 1; s >= self->stack.items; s--) {
+    if(*s == name) {
       /*
        * TODO We aren't allowing function definitions to assign over
        * existing variables, but we should give some reasonable error.
@@ -318,10 +308,7 @@ void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t l
    * compiler* so that we can emit instructions that reference
    * this stack location by number.
    */
-  assert(nameLength < UINT8_MAX);
-  Symbol s;
-  Symbol_init(&s, nameLength, name);
-  SymbolStack_push(&(self->stack), s);
+  SymbolStack_push(&(self->stack), name);
 }
 
 /*
@@ -402,10 +389,10 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * bottom.
          */
         AtomNode* aNode = (AtomNode*)node;
+        Symbol* name = Compiler_getSymbol(self, aNode->length, aNode->text);
 
-        for(Symbol* s = self->stack.top - 1; s >= self->stack.items; s--) {
-          if(s->length == aNode->length &&
-              !strncmp(s->name, aNode->text, s->length)) {
+        for(Symbol** s = self->stack.top - 1; s >= self->stack.items; s--) {
+          if(*s == name) {
             size_t result = emitInstruction(code, node->line, OP_GET);
             emitByte(code, node->line, s - (self->stack.items));
 
@@ -646,14 +633,18 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
         size_t result = emitNode(self, code, bNode->arg1, true);
 
         AtomNode* targetNode = ((AtomNode*)(bNode->arg0));
+        Symbol* targetSymbol = Compiler_getSymbol(
+            self,
+            targetNode->length,
+            targetNode->text
+          );
 
         emitAssignment(
             self,
             code,
             true, /* Allow reassignment */
             node->line,
-            targetNode->length,
-            targetNode->text
+            targetSymbol
           );
 
         if(emitReturn) emitInstruction(code, node->line, OP_NIL);
@@ -746,17 +737,17 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
 
     case NODE_FN_DEF:
       {
-        Symbol name = makeSymbolFromNode(((TernaryNode*)node)->arg0);
-
-        /*
-         * TODO Get this from somewhere where it will be comparable.
-         */
-        Symbol* namePtr = malloc(sizeof(Symbol));
-        *namePtr = name;
+        Node* nameNode = ((TernaryNode*)node)->arg0;
+        assert(nameNode->type == NODE_IDENTIFIER);
+        Symbol* name = Compiler_getSymbol(
+            self,
+            ((AtomNode*)nameNode)->length,
+            ((AtomNode*)nameNode)->text
+          );
 
         Obj* obj = makeObjClosure(
           self,
-          namePtr,
+          name,
           ((TernaryNode*)node)->arg1,
           ((TernaryNode*)node)->arg2
         );
@@ -772,8 +763,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
             code,
             false, /* Don't allow reassignment */
             node->line,
-            name.length,
-            name.name);
+            name);
 
         if(emitReturn) emitInstruction(code, node->line, OP_NIL);
 
