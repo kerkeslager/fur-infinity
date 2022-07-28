@@ -17,7 +17,6 @@ void SymbolStack_init(SymbolStack* self) {
 }
 
 void SymbolStack_free(SymbolStack* self) {
-  free(self->items);
 }
 
 void SymbolStack_push(SymbolStack* self, Symbol* value) {
