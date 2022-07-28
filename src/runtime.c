@@ -51,7 +51,7 @@ inline static void SymbolTable_expand(SymbolTable* self) {
   assert(self->items != NULL);
 
   for(size_t i = 0; i < self->capacity; i++) {
-    self->items = NULL;
+    self->items[i] = NULL;
   }
 
   for(size_t i = 0; i < oldCapacity; i++) {
@@ -93,7 +93,7 @@ Symbol* SymbolTable_getSymbol(SymbolTable* self, uint8_t length, char* name) {
     self->capacity = 64;
     self->items = malloc(sizeof(Symbol*) * self->capacity);
     for(size_t i = 0; i < self->capacity; i++) {
-      self->items = NULL;
+      self->items[i] = NULL;
     }
   } else if(((double)(self->load + 1)) / ((double)self->capacity) > MAX_LOAD) {
     SymbolTable_expand(self);
@@ -122,6 +122,8 @@ Symbol* SymbolTable_getSymbol(SymbolTable* self, uint8_t length, char* name) {
 #undef MAX_LOAD
 
 Symbol* Runtime_getSymbol(Runtime* self, size_t length, char* name) {
+  assert(self != NULL);
+  assert(name != NULL);
   assert(length <= UINT8_MAX);
   return SymbolTable_getSymbol(&(self->symbols), (uint8_t)length, name);
 }
