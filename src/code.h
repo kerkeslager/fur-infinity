@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "list.h"
+#include "memory.h"
 #include "value.h"
 
 typedef enum {
@@ -55,6 +56,8 @@ typedef struct {
   LineRunList lineRuns;
   InstructionList instructions;
 } Code;
+
+inline static ALLOCATE_ONE_IMPL(Code);
 
 void Code_init(Code*);
 void Code_free(Code*);

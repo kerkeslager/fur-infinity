@@ -679,11 +679,10 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
         assert(tNode->arg0->type == NODE_IDENTIFIER);
         AtomNode* name = (AtomNode*)(tNode->arg0);
 
-        assert(tNode->arg1->type == NODE_COMMA_SEPARATED_LIST);
+        assert(tNode->arg1 == NULL || tNode->arg1->type == NODE_COMMA_SEPARATED_LIST);
         ExpressionListNode* arguments = (ExpressionListNode*)(tNode->arg1);
 
-        assert(tNode->arg2->type == NODE_EXPRESSION_LIST);
-        ExpressionListNode* body = (ExpressionListNode*)(tNode->arg2);
+        Node* body = tNode->arg2;
 
         /*
          * First we compile the code for the function, then we assign it
@@ -695,12 +694,8 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * Most notably, code is maintaining a separate list of interned
          * strings, which should probably be shared by the whole runtime.
          */
-        Code* functionCode = malloc(sizeof(Code));
+        Code* functionCode = Code_allocateOne();
         Code_init(functionCode);
-
-        /*
-         * TODO Capture upvalues.
-         */
 
         /*
          * The values for the arguments are already on the stack, and
@@ -723,13 +718,10 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
           SymbolStack_push(&(self->stack), s);
         }
 
-        emitNode(self, functionCode, (Node*)body, true);
+        emitNode(self, functionCode, body, true);
 
-        /*
-         * TODO We need to fix any variables that were emitted in the
-         * body of the function, because they are sitting on the stack
-         * after the function runs.
-         */
+        /* TODO This line isn't really right */
+        emitInstruction(functionCode, body->line, OP_RETURN);
 
         size_t result = emitFunction(code, functionCode);
 

@@ -1,0 +1,5 @@
+def f():
+  print('Hello, world\n')
+end
+
+f()
