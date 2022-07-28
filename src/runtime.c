@@ -34,13 +34,24 @@ void SymbolTable_init(SymbolTable* self) {
 }
 
 void SymbolTable_free(SymbolTable* self) {
-  for(size_t i = 0; i < self->capacity; i++) {
-    if(self->items != NULL) free(self->items[i]);
+  if(self->items != NULL) {
+    for(size_t i = 0; i < self->capacity; i++) {
+      if(self->items[i] != NULL) free(self->items[i]);
+    }
+    free(self->items);
   }
-  free(self->items);
+}
+
+inline static void SymbolTable_initItems(SymbolTable* self) {
+  assert(self->capacity > 0);
+  assert(self->items != NULL);
+  for(size_t i = 0; i < self->capacity; i++) {
+    self->items[i] = NULL;
+  }
 }
 
 inline static void SymbolTable_expand(SymbolTable* self) {
+  assert(self->items != NULL);
   assert(self->capacity > 0);
   size_t oldCapacity = self->capacity;
   Symbol** oldItems = self->items;
@@ -50,9 +61,7 @@ inline static void SymbolTable_expand(SymbolTable* self) {
   self->items = malloc(sizeof(Symbol*) * self->capacity);
   assert(self->items != NULL);
 
-  for(size_t i = 0; i < self->capacity; i++) {
-    self->items[i] = NULL;
-  }
+  SymbolTable_initItems(self);
 
   for(size_t i = 0; i < oldCapacity; i++) {
     if(oldItems[i] != NULL) {
@@ -68,6 +77,9 @@ inline static void SymbolTable_expand(SymbolTable* self) {
       }
     }
   }
+
+  assert(oldItems != NULL);
+  free(oldItems);
 }
 
 #define MAX_LOAD 0.75
@@ -90,11 +102,10 @@ inline static void SymbolTable_expand(SymbolTable* self) {
  */
 Symbol* SymbolTable_getSymbol(SymbolTable* self, uint8_t length, char* name) {
   if(self->capacity == 0) {
+    assert(self->items == NULL);
     self->capacity = 64;
     self->items = malloc(sizeof(Symbol*) * self->capacity);
-    for(size_t i = 0; i < self->capacity; i++) {
-      self->items[i] = NULL;
-    }
+    SymbolTable_initItems(self);
   } else if(((double)(self->load + 1)) / ((double)self->capacity) > MAX_LOAD) {
     SymbolTable_expand(self);
   }
@@ -108,6 +119,7 @@ Symbol* SymbolTable_getSymbol(SymbolTable* self, uint8_t length, char* name) {
       Symbol* newSymbol = malloc(sizeof(Symbol));
       Symbol_init(newSymbol, h, length, name);
       self->items[index] = newSymbol;
+      self->load++;
       return newSymbol;
     } else if(Symbol_equal(self->items[index], h, length, name)) {
       return self->items[index];
