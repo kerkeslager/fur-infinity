@@ -59,7 +59,8 @@ static void Scanner_scanWhitespace(Scanner* self) {
     switch(*(self->current)) {
       case '\n':
         self->line++;
-        // Do *not* break, cascade
+        self->current++;
+        break;
 
       case ' ':
       case '\t':
