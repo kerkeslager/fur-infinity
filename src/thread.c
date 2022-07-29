@@ -507,6 +507,16 @@ void Thread_run(Thread* self, Code* code) {
                 Value result = call(argc, self->stack.top - argc);
                 *argv = result;
                 self->stack.top = argv + 1;
+
+                if(result.is_a == TYPE_OBJ) {
+                  /*
+                   * TODO Should we add the result to the heap?
+                   *
+                   * This doesn't matter currently because our only native
+                   * function (print) returns nil.
+                   */
+                  assert(false);
+                }
               } break;
 
             default:
