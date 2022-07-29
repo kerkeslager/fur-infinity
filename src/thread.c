@@ -210,20 +210,23 @@ inline static Value notEquals(Value arg0, Value arg1) {
   return logicalNot(equals(arg0, arg1));
 }
 
-size_t Thread_run(Thread* self, Code* code) {
-  size_t index = 0;
+void Thread_run(Thread* self, Code* code) {
+  register uint8_t* ip = code->instructions.items;
+  register uint8_t instruction;
 
-  for(;index < code->instructions.length;) {
+  for(;ip < code->instructions.items + code->instructions.length;) {
     /*
      * TODO Profile different ways of putting index, instruction, and/or
      * a pointer to the instruction in code into a register.
      */
-    uint8_t instruction = Code_getUInt8(code, index);
+    instruction = *ip;
+
     /*
      * We increment the index *immediately* so we don't have to remember to
      * increment it in every single case statement.
      */
-    index++;
+    ip++;
+
 
     #ifdef DEBUG
     Stack_print(&(self->stack));
@@ -236,8 +239,7 @@ size_t Thread_run(Thread* self, Code* code) {
     switch(instruction) {
       case OP_GET:
         {
-          assert(index < code->instructions.length);
-          uint8_t stackIndex = Code_getUInt8(code, index);
+          uint8_t stackIndex = *ip;
 
           /*
            * If this fails, it means we either pointed our get instruction
@@ -250,15 +252,14 @@ size_t Thread_run(Thread* self, Code* code) {
 
           // TODO Don't access the stack like this
           Stack_push(&(self->stack), self->stack.items[stackIndex]);
-          index++;
+          ip++;
         } break;
 
       case OP_SET:
         {
-          assert(index < code->instructions.length);
           // TODO Don't access the stack like this
-          self->stack.items[Code_getUInt8(code, index)] = Stack_pop(&(self->stack));
-          index++;
+          self->stack.items[*ip] = Stack_pop(&(self->stack));
+          ip++;
         } break;
 
       case OP_NIL:
@@ -278,24 +279,22 @@ size_t Thread_run(Thread* self, Code* code) {
 
       case OP_INTEGER:
         {
-          assert(index + sizeof(int32_t) <= code->instructions.length);
           Stack_push(
               &(self->stack),
-              Value_fromInt32(Code_getInt32(code, index))
+              Value_fromInt32(Code_getInt32(code, ip))
           );
 
-          index += sizeof(int32_t);
+          ip += sizeof(int32_t);
         } break;
 
       case OP_STRING:
         {
-          assert(index < code->instructions.length);
           Stack_push(
             &(self->stack),
             Value_fromObj(
               Code_getInterned(
                 code,
-                Code_getUInt8(code, index)
+                Code_getUInt8(code, ip)
               )
             )
           );
@@ -306,7 +305,7 @@ size_t Thread_run(Thread* self, Code* code) {
            * should be treated as immutable. As such, we don't want them
            * garbage collected: they will be freed by Code_free()
            */
-          index++;
+          ip++;
         } break;
 
       case OP_DROP:
@@ -335,9 +334,9 @@ size_t Thread_run(Thread* self, Code* code) {
 
       case OP_JUMP:
         {
-          int16_t jump = Code_getInt16(code, index);
-          index += jump;
-          assert(index <= code->instructions.length);
+          int16_t jump = Code_getInt16(code, ip);
+          ip += jump;
+          assert(ip <= code->instructions.items + code->instructions.length);
         } break;
 
       case OP_JUMP_IF_TRUE:
@@ -347,14 +346,14 @@ size_t Thread_run(Thread* self, Code* code) {
           assert(v.is_a == TYPE_BOOLEAN);
 
           if(v.as.boolean) {
-            int16_t jump = Code_getInt16(code, index);
-            index += jump;
+            int16_t jump = Code_getInt16(code, ip);
+            ip += jump;
           } else {
             // Step over the space that contains the jump target
-            index += sizeof(int16_t);
+            ip += sizeof(int16_t);
           }
 
-          assert(index <= code->instructions.length);
+          assert(ip <= code->instructions.items + code->instructions.length);
         } break;
 
       case OP_JUMP_IF_FALSE:
@@ -364,14 +363,14 @@ size_t Thread_run(Thread* self, Code* code) {
           assert(v.is_a == TYPE_BOOLEAN);
 
           if(!(v.as.boolean)) {
-            int16_t jump = Code_getInt16(code, index);
-            index += jump;
+            int16_t jump = Code_getInt16(code, ip);
+            ip += jump;
           } else {
             // Step over the space that contains the jump target
-            index += sizeof(int16_t);
+            ip += sizeof(int16_t);
           }
 
-          assert(index <= code->instructions.length);
+          assert(ip <= code->instructions.items + code->instructions.length);
         } break;
 
       /*
@@ -423,15 +422,15 @@ size_t Thread_run(Thread* self, Code* code) {
           assert(v.is_a == TYPE_BOOLEAN);
 
           if(!(v.as.boolean)) {
-            int16_t jump = Code_getInt16(code, index);
-            index += jump;
+            int16_t jump = Code_getInt16(code, ip);
+            ip += jump;
           } else {
             // Step over the space that contains the jump target
-            index += sizeof(int16_t);
+            ip += sizeof(int16_t);
             Stack_pop(&(self->stack));
           }
 
-          assert(index <= code->instructions.length);
+          assert(ip <= code->instructions.items + code->instructions.length);
         } break;
 
       /*
@@ -444,15 +443,15 @@ size_t Thread_run(Thread* self, Code* code) {
           assert(v.is_a == TYPE_BOOLEAN);
 
           if(v.as.boolean) {
-            int16_t jump = Code_getInt16(code, index);
-            index += jump;
+            int16_t jump = Code_getInt16(code, ip);
+            ip += jump;
           } else {
             // Step over the space that contains the jump target
-            index += sizeof(int16_t);
+            ip += sizeof(int16_t);
             Stack_pop(&(self->stack));
           }
 
-          assert(index <= code->instructions.length);
+          assert(ip <= code->instructions.items + code->instructions.length);
         } break;
 
       /*
@@ -484,8 +483,8 @@ size_t Thread_run(Thread* self, Code* code) {
 
       case OP_CALL:
         {
-          uint8_t argc = Code_getUInt8(code, index);
-          index++;
+          uint8_t argc = Code_getUInt8(code, ip);
+          ip++;
 
           Value callee = Stack_pop(&(self->stack));
           assert(callee.is_a == TYPE_OBJ);
@@ -518,7 +517,7 @@ size_t Thread_run(Thread* self, Code* code) {
       case OP_NATIVE:
         {
           ObjNative* n = ObjNative_allocateOne();
-          ObjNative_init(n, NATIVE[Code_getUInt8(code, index)].call);
+          ObjNative_init(n, NATIVE[Code_getUInt8(code, ip)].call);
 
           Value v;
           v.is_a = TYPE_OBJ;
@@ -528,13 +527,11 @@ size_t Thread_run(Thread* self, Code* code) {
           /* Add to heap AFTER adding to stack, to be sure it doesn't get GC'ed */
           Thread_addToHeap(self, (Obj*)n);
 
-          index++;
+          ip++;
         } break;
 
       default:
         assert(false);
     }
   }
-
-  return index;
 }

@@ -97,19 +97,24 @@ size_t Code_append(Code* self, uint8_t byte, size_t line) {
   return result;
 }
 
-uint8_t Code_getUInt8(Code* self, size_t index) {
-  assert(index < self->instructions.length);
-  return self->instructions.items[index];
+uint8_t Code_getUInt8(Code* self, uint8_t* ip) {
+  assert((size_t)(ip - self->instructions.items)
+      < self->instructions.length);
+  return *ip;
 }
 
-int16_t Code_getInt16(Code* self, size_t index) {
-  assert(index <= self->instructions.length - sizeof(int16_t));
-  return *((int16_t*)(self->instructions.items + index));
+int16_t Code_getInt16(Code* self, uint8_t* ip) {
+  /* Note the "<=", not "<" */
+  assert((size_t)(ip - self->instructions.items)
+      <= self->instructions.length - sizeof(int16_t));
+  return *((int16_t*)ip);
 }
 
-int32_t Code_getInt32(Code* self, size_t index) {
-  assert(index <= self->instructions.length - sizeof(int32_t));
-  return *((int32_t*)(self->instructions.items + index));
+int32_t Code_getInt32(Code* self, uint8_t* ip) {
+  /* Note the "<=", not "<" */
+  assert((size_t)(ip - self->instructions.items)
+      <= self->instructions.length - sizeof(int32_t));
+  return *((int32_t*)ip);
 }
 
 size_t Code_getCurrent(Code* self) {
