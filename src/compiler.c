@@ -446,10 +446,11 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool useResult) {
           }
         }
 
-        char buffer[aNode->length + 1];
-        snprintf(buffer, aNode->length, "%s", aNode->text);
-        buffer[aNode->length] = '\0';
-        printf("Unknown identifier \"%s\"\n", buffer);
+        printf("Unknown identifier \"");
+        for(size_t i = 0; i < aNode->length; i++) {
+          printf("%c", aNode->text[i]);
+        }
+        printf("\"\n");
         fflush(stdout);
         assert(false); // TODO Handle this
       }
