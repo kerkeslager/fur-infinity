@@ -483,19 +483,30 @@ size_t Thread_run(Thread* self, Code* code, size_t index) {
 
           Value callee = Stack_pop(&(self->stack));
           assert(callee.is_a == TYPE_OBJ);
-          assert(callee.as.obj->type == OBJ_NATIVE);
 
-          Value (*call)(uint8_t, Value*) = ((ObjNative*)(callee.as.obj))->call;
+          switch(callee.as.obj->type) {
+            case OBJ_CLOSURE:
+              assert(false); /* TODO Implement this. */
+              break;
 
-          /*
-           * We leave the arguments on the stack while the function is
-           * running so that they are considered live by the garbage
-           * collector.
-           */
-          Value* argv = self->stack.top - argc;
-          Value result = call(argc, self->stack.top - argc);
-          *argv = result;
-          self->stack.top = argv + 1;
+            case OBJ_NATIVE:
+              {
+                Value (*call)(uint8_t, Value*) = ((ObjNative*)(callee.as.obj))->call;
+
+                /*
+                 * We leave the arguments on the stack while the function is
+                 * running so that they are considered live by the garbage
+                 * collector.
+                 */
+                Value* argv = self->stack.top - argc;
+                Value result = call(argc, self->stack.top - argc);
+                *argv = result;
+                self->stack.top = argv + 1;
+              } break;
+
+            default:
+              assert(false);
+          }
         } break;
 
       case OP_NATIVE:
