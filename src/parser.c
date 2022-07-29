@@ -346,7 +346,7 @@ Node* parseWhile(Scanner* scanner, size_t line) {
   return makeBinaryNode(NODE_WHILE, line, test, body);
 }
 
-const static PrecedenceRule PRECEDENCE_TABLE[] = {
+static const PrecedenceRule PRECEDENCE_TABLE[] = {
 // TokenType              Prefix,     InfixLeft,        InfixRight
   [TOKEN_NIL] =         { PREC_NONE,  PREC_NONE,        PREC_NONE         },
   [TOKEN_TRUE] =        { PREC_NONE,  PREC_NONE,        PREC_NONE         },
@@ -526,10 +526,11 @@ void Node_free(Node* self) {
   switch(self->type) {
     case NODE_IF:
     case NODE_FN_DEF:
+      Node_free(((TernaryNode*)self)->arg0);
+      Node_free(((TernaryNode*)self)->arg1);
       Node_free(((TernaryNode*)self)->arg2);
-      // Don't break, cascade to further cleanup
+      break;
 
-    // Binary nodes
     case NODE_ADD:
     case NODE_AND:
     case NODE_ASSIGN:
@@ -546,16 +547,15 @@ void Node_free(Node* self) {
     case NODE_PROPERTY:
     case NODE_SUBTRACT:
     case NODE_WHILE:
+      Node_free(((BinaryNode*)self)->arg0);
       Node_free(((BinaryNode*)self)->arg1);
-      // Don't break, cascade to further cleanup
+      break;
 
     case NODE_NEGATE:
     case NODE_NOT:
-    // Unary nodes
       Node_free(((UnaryNode*)self)->arg);
-      // Don't break, cascade to further cleanup
+      break;
 
-    // Atom nodes
     case NODE_FALSE:
     case NODE_IDENTIFIER:
     case NODE_NIL:

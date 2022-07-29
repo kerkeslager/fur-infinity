@@ -3,11 +3,6 @@
 
 #include "object.h"
 
-inline static void Obj_init(Obj* self, ObjType type) {
-  self->next = NULL;
-  self->type = type;
-}
-
 ALLOCATE_ONE_IMPL(ObjClosure);
 
 void ObjClosure_init(ObjClosure* self, Symbol* name, uint8_t arity, Code* code) {
@@ -84,6 +79,8 @@ bool Obj_equals(Obj* self, Obj* other) {
       return other->type == OBJ_STRING &&
         ObjString_equals((ObjString*)self, (ObjString*)other);
   }
+
+  assert(false);
 }
 
 void Symbol_printRepr(Symbol* self) {

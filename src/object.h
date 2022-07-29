@@ -37,7 +37,10 @@ struct ObjString {
   char* characters;
 };
 
-inline static void Obj_init(Obj*, ObjType);
+inline static void Obj_init(Obj* self, ObjType type) {
+  self->next = NULL;
+  self->type = type;
+}
 void Obj_free(Obj*);
 void Obj_printRepr(Obj*);
 bool Obj_equals(Obj*, Obj*);
