@@ -71,7 +71,7 @@ uint8_t Code_internObject(Code* self, Obj* intern);
  * instead. But this is *highly* performance-critical code, so we need to
  * profile to do anything.
  */
-Instruction Code_get(Code*, size_t index);
+uint8_t Code_getUInt8(Code*, size_t index);
 int16_t Code_getInt16(Code*, size_t index);
 int32_t Code_getInt32(Code*, size_t index);
 size_t Code_getCurrent(Code*);

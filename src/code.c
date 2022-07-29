@@ -97,7 +97,7 @@ size_t Code_append(Code* self, uint8_t byte, size_t line) {
   return result;
 }
 
-Instruction Code_get(Code* self, size_t index) {
+uint8_t Code_getUInt8(Code* self, size_t index) {
   assert(index < self->instructions.length);
   return self->instructions.items[index];
 }

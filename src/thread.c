@@ -218,7 +218,7 @@ size_t Thread_run(Thread* self, Code* code) {
      * TODO Profile different ways of putting index, instruction, and/or
      * a pointer to the instruction in code into a register.
      */
-    uint8_t instruction = Code_get(code, index);
+    uint8_t instruction = Code_getUInt8(code, index);
     /*
      * We increment the index *immediately* so we don't have to remember to
      * increment it in every single case statement.
@@ -235,28 +235,32 @@ size_t Thread_run(Thread* self, Code* code) {
 
     switch(instruction) {
       case OP_GET:
-        assert(index < code->instructions.length);
-        size_t stackIndex = Code_get(code, index);
+        {
+          assert(index < code->instructions.length);
+          uint8_t stackIndex = Code_getUInt8(code, index);
 
-        /*
-         * If this fails, it means we either pointed our get instruction
-         * beyond the edge of the stack, or we popped off our variable
-         * when we shouldn't have. Either is a bug. It would be better to
-         * catch the latter case closer to where it happens, but that's hard.
-         * "Better late than never."
-         */
-        assert(self->stack.items + stackIndex < self->stack.top);
+          /*
+           * If this fails, it means we either pointed our get instruction
+           * beyond the edge of the stack, or we popped off our variable
+           * when we shouldn't have. Either is a bug. It would be better to
+           * catch the latter case closer to where it happens, but that's hard.
+           * "Better late than never."
+           */
+          assert(self->stack.items + stackIndex < self->stack.top);
 
-        // TODO Don't access the stack like this
-        Stack_push(&(self->stack), self->stack.items[stackIndex]);
-        index++;
-        break;
+          // TODO Don't access the stack like this
+          Stack_push(&(self->stack), self->stack.items[stackIndex]);
+          index++;
+        } break;
+
       case OP_SET:
-        assert(index < code->instructions.length);
-        // TODO Don't access the stack like this
-        self->stack.items[Code_get(code, index)] = Stack_pop(&(self->stack));
-        index++;
-        break;
+        {
+          assert(index < code->instructions.length);
+          // TODO Don't access the stack like this
+          self->stack.items[Code_getUInt8(code, index)] = Stack_pop(&(self->stack));
+          index++;
+        } break;
+
       case OP_NIL:
         {
           Value nil;
@@ -291,7 +295,7 @@ size_t Thread_run(Thread* self, Code* code) {
             Value_fromObj(
               Code_getInterned(
                 code,
-                Code_get(code, index)
+                Code_getUInt8(code, index)
               )
             )
           );
@@ -480,7 +484,7 @@ size_t Thread_run(Thread* self, Code* code) {
 
       case OP_CALL:
         {
-          uint8_t argc = Code_get(code, index);
+          uint8_t argc = Code_getUInt8(code, index);
           index++;
 
           Value callee = Stack_pop(&(self->stack));
@@ -514,7 +518,7 @@ size_t Thread_run(Thread* self, Code* code) {
       case OP_NATIVE:
         {
           ObjNative* n = ObjNative_allocateOne();
-          ObjNative_init(n, NATIVE[Code_get(code, index)].call);
+          ObjNative_init(n, NATIVE[Code_getUInt8(code, index)].call);
 
           Value v;
           v.is_a = TYPE_OBJ;
