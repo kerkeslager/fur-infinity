@@ -8,18 +8,46 @@
 #include "thread.h"
 #include "value.h"
 
+void FrameStack_init(FrameStack* self) {
+  self->top = self->items;
+}
+
+void FrameStack_free(FrameStack* self) {
+  self->top = self->items;
+}
+
+void FrameStack_push(FrameStack* self, Frame item) {
+  // TODO Handle this.
+  assert((self->top - self->items) < MAX_FRAMESTACK_DEPTH);
+
+  *(self->top) = item;
+  self->top++;
+}
+
+Frame FrameStack_pop(FrameStack* self) {
+  assert(self->top > self->items);
+
+  self->top--;
+  return *(self->top);
+}
+
 void Stack_init(Stack* self) {
   self->top = self->items;
 }
 
 void Stack_free(Stack* self) {
+  /*
+   * This allows us to call GC afterward and have it read the stack as being
+   * empty, without any special support in the GC.
+   */
+  self->top = self->items;
 }
 
-void Stack_push(Stack* self, Value value) {
+void Stack_push(Stack* self, Value item) {
   // TODO Handle this.
   assert((self->top - self->items) < MAX_STACK_DEPTH);
 
-  *(self->top) = value;
+  *(self->top) = item;
   self->top++;
 }
 
@@ -82,11 +110,13 @@ void Stack_binary(Stack* self, Value (*binary)(Value, Value)) {
 }
 
 void Thread_init(Thread* self) {
+  FrameStack_init(&(self->frames));
   Stack_init(&(self->stack));
   self->heap = NULL;
 }
 
 void Thread_free(Thread* self) {
+  FrameStack_free(&(self->frames));
   Stack_free(&(self->stack));
 
   Obj* heap = self->heap;
@@ -211,10 +241,23 @@ inline static Value notEquals(Value arg0, Value arg1) {
 }
 
 void Thread_run(Thread* self, Code* code) {
+  /*
+   * TODO Wrap the outer level in a closure so we can write assertions against
+   * the fact that we should always be within the bounds of the current code's
+   * instructions.
+   */
+  ObjClosure* current = NULL;
   register uint8_t* ip = code->instructions.items;
   register uint8_t instruction;
+  Value* fp = self->stack.items; /* TODO Profile adding this to a register. */
 
-  for(;ip < code->instructions.items + code->instructions.length;) {
+  /*
+   * TODO This is only used so we can assert ip is within the bounds--could be
+   * cleaned up pretty significantly.
+   */
+  Code* rootCode = code;
+
+  for(;;) {
     /*
      * TODO Profile different ways of putting index, instruction, and/or
      * a pointer to the instruction in code into a register.
@@ -239,7 +282,10 @@ void Thread_run(Thread* self, Code* code) {
     switch(instruction) {
       case OP_GET:
         {
-          uint8_t stackIndex = *ip;
+          uint8_t stackIndex = Code_getUInt8(code, ip);
+          ip++;
+
+          assert(fp + stackIndex >= self->stack.items);
 
           /*
            * If this fails, it means we either pointed our get instruction
@@ -248,18 +294,20 @@ void Thread_run(Thread* self, Code* code) {
            * catch the latter case closer to where it happens, but that's hard.
            * "Better late than never."
            */
-          assert(self->stack.items + stackIndex < self->stack.top);
+          assert(fp + stackIndex < self->stack.top);
 
-          // TODO Don't access the stack like this
-          Stack_push(&(self->stack), self->stack.items[stackIndex]);
-          ip++;
+          Stack_push(&(self->stack), *(fp + stackIndex));
         } break;
 
       case OP_SET:
         {
-          // TODO Don't access the stack like this
-          self->stack.items[*ip] = Stack_pop(&(self->stack));
+          uint8_t stackIndex = Code_getUInt8(code, ip);
           ip++;
+
+          assert(fp + stackIndex >= self->stack.items);
+          assert(fp + stackIndex < self->stack.top);
+
+          *(fp + stackIndex) = Stack_pop(&(self->stack));
         } break;
 
       case OP_NIL:
@@ -491,8 +539,35 @@ void Thread_run(Thread* self, Code* code) {
 
           switch(callee.as.obj->type) {
             case OBJ_CLOSURE:
-              assert(false); /* TODO Implement this. */
-              break;
+              {
+                ObjClosure* closure = (ObjClosure*)(callee.as.obj);
+                assert(argc == closure->arity); /* TODO Handle this */
+
+                Frame previous = {
+                  .closure = current,
+                  .ip = ip,
+                  .fp = fp
+                };
+
+                FrameStack_push(&(self->frames), previous);
+
+                assert(closure != NULL);
+                current = closure;
+
+                /*
+                 * TODO This is only used in assertions and should probably be
+                 * cleaned up.
+                 */
+                code = closure->code;
+
+                assert(closure->code != NULL);
+                assert(closure->code->instructions.items != NULL);
+                ip = closure->code->instructions.items;
+
+                fp = self->stack.top - argc;
+                assert(fp <= self->stack.top);
+                assert(fp >= self->stack.items);
+              } break;
 
             case OBJ_NATIVE:
               {
@@ -521,6 +596,32 @@ void Thread_run(Thread* self, Code* code) {
 
             default:
               assert(false);
+          }
+        } break;
+
+      case OP_RETURN:
+        {
+          if(current == NULL) return;
+
+          assert(fp >= self->stack.items);
+          assert(fp < self->stack.top);
+
+          *fp = Stack_peek(&(self->stack));
+          self->stack.top = fp + 1;
+
+          Frame previous = FrameStack_pop(&(self->frames));
+          current = previous.closure;
+          ip = previous.ip;
+          fp = previous.fp;
+
+          /*
+           * TODO This is only used in assertions and should probably
+           * be cleaned up.
+           */
+          if(previous.closure == NULL) {
+            code = rootCode;
+          } else {
+            code = previous.closure->code;
           }
         } break;
 

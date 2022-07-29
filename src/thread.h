@@ -1,11 +1,26 @@
 #ifndef FUR_THREAD_H
 #define FUR_THREAD_H
 
-#define MAX_STACK_DEPTH 256
-
 #include "code.h"
 #include "object.h"
 #include "value.h"
+
+#define MAX_FRAMESTACK_DEPTH 64
+#define MAX_STACK_DEPTH 256
+
+typedef struct {
+  ObjClosure* closure;
+  uint8_t* ip;
+  Value* fp;
+} Frame;
+
+typedef struct {
+  Frame items[MAX_FRAMESTACK_DEPTH];
+  Frame* top;
+} FrameStack;
+
+void FrameStack_init(FrameStack*);
+void FrameStack_free(FrameStack*);
 
 typedef struct {
   Value items[MAX_STACK_DEPTH];
@@ -21,6 +36,7 @@ Value Stack_pop(Stack*);
 void Stack_binary(Stack*, Value (*binary)(Value, Value));
 
 typedef struct {
+  FrameStack frames;
   Stack stack;
   Obj* heap;
 } Thread;

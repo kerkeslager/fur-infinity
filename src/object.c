@@ -17,6 +17,10 @@ void ObjClosure_init(ObjClosure* self, Symbol* name, uint8_t arity, Code* code) 
   self->code = code;
 }
 
+void ObjClosure_free(ObjClosure* self) {
+  Code_free(self->code);
+}
+
 ALLOCATE_ONE_IMPL(ObjNative);
 
 void ObjNative_init(ObjNative* self, Value (*call)(uint8_t, Value*)) {
@@ -39,6 +43,10 @@ void ObjString_free(ObjString* self) {
 
 void Obj_free(Obj* self) {
   switch(self->type) {
+    case OBJ_CLOSURE:
+      ObjClosure_free((ObjClosure*)self);
+      break;
+
     case OBJ_NATIVE:
       break;
 
@@ -76,6 +84,19 @@ bool Obj_equals(Obj* self, Obj* other) {
       return other->type == OBJ_STRING &&
         ObjString_equals((ObjString*)self, (ObjString*)other);
   }
+}
+
+void Symbol_printRepr(Symbol* self) {
+  printf(":");
+  for(uint8_t i = 0; i < self->length; i++) {
+    printf("%c", self->name[i]);
+  }
+}
+
+void ObjClosure_printRepr(ObjClosure* self) {
+  printf("<closure ");
+  Symbol_printRepr(self->name);
+  printf(">");
 }
 
 void ObjNative_printRepr(ObjNative* self) {
@@ -162,6 +183,9 @@ void ObjString_printRepr(ObjString* self) {
 
 void Obj_printRepr(Obj* self) {
   switch(self->type) {
+    case OBJ_CLOSURE:
+      return ObjClosure_printRepr((ObjClosure*) self);
+
     case OBJ_NATIVE:
       return ObjNative_printRepr((ObjNative*) self);
 

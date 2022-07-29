@@ -44,6 +44,7 @@ bool Obj_equals(Obj*, Obj*);
 
 ALLOCATE_ONE_DECL(ObjClosure);
 void ObjClosure_init(ObjClosure*, Symbol*, uint8_t, Code*);
+void ObjClosure_free(ObjClosure*);
 
 ALLOCATE_ONE_DECL(ObjNative);
 void ObjNative_init(ObjNative*, Value (*call)(uint8_t, Value*));
