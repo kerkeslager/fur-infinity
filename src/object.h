@@ -55,6 +55,7 @@ void ObjString_init(ObjString*, size_t, char*);
 void ObjString_free(ObjString*);
 bool ObjString_equals(ObjString*, ObjString*);
 
+Value nativeInput(uint8_t argc, Value* argv);
 Value nativePrint(uint8_t argc, Value* argv);
 
 typedef struct {
@@ -62,9 +63,10 @@ typedef struct {
   Value (*call)(uint8_t, Value*);
 } NamedNative;
 
-#define NATIVE_COUNT 1
+#define NATIVE_COUNT 2
 
 static const NamedNative NATIVE[NATIVE_COUNT] = {
+  { .name="input", .call=nativeInput },
   { .name="print", .call=nativePrint }
 };
 

@@ -197,6 +197,39 @@ void Obj_printRepr(Obj* self) {
   }
 }
 
+Value nativeInput(uint8_t argc, Value* argv) {
+  assert(argc == 1);
+  Value v = *argv;
+  assert(v.is_a == TYPE_OBJ);
+  assert(v.as.obj->type == OBJ_STRING);
+
+  nativePrint(1, argv);
+
+  #define BUFF_LENGTH 1024
+  char* buffer = malloc(BUFF_LENGTH);
+
+  if(!fgets(buffer, BUFF_LENGTH, stdin)) {
+    buffer[0] = '\0';
+  }
+
+  size_t length;
+
+  for(length = 0; length < BUFF_LENGTH; length++) {
+    if(buffer[length] == '\0') break;
+  }
+
+  char* tmp = realloc(buffer, length + 1);
+  assert(tmp != NULL); /* TODO Handle this. */
+  buffer = tmp;
+
+  ObjString* objString = malloc(sizeof(ObjString));
+  ObjString_init(objString, length, buffer);
+
+  v.as.obj = (Obj*)objString;
+  return v;
+  #undef BUFF_LENGTH
+}
+
 Value nativePrint(uint8_t argc, Value* argv) {
   for(uint8_t i = 0; i < argc; i++) {
     switch(argv[i].is_a) {
