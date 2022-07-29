@@ -361,7 +361,7 @@ Value runString(
   }
 
   assert(options.action == RUN);
-  Thread_run(thread, code, startIndex);
+  Thread_run(thread, code);
 
   return Stack_pop(&(thread->stack));
 }

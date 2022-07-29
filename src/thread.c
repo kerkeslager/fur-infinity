@@ -210,7 +210,9 @@ inline static Value notEquals(Value arg0, Value arg1) {
   return logicalNot(equals(arg0, arg1));
 }
 
-size_t Thread_run(Thread* self, Code* code, size_t index) {
+size_t Thread_run(Thread* self, Code* code) {
+  size_t index = 0;
+
   for(;index < code->instructions.length;) {
     /*
      * TODO Profile different ways of putting index, instruction, and/or
