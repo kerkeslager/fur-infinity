@@ -238,7 +238,8 @@ size_t emitJump(Compiler* self, Code* code, size_t line, Instruction inst) {
   return result;
 }
 
-void Compiler_patchJump(Compiler* self, Code* code, size_t jumpIndex, size_t targetIndex) {
+/* TODO This should probably be Code_patchJump */
+void Compiler_patchJump(Code* code, size_t jumpIndex, size_t targetIndex) {
   // TODO Handle these
   assert(jumpIndex <= INT32_MAX);
   assert(targetIndex <= INT32_MAX);
@@ -263,8 +264,9 @@ void Compiler_patchJump(Compiler* self, Code* code, size_t jumpIndex, size_t tar
   *((int16_t*)(&(code->instructions.items[jumpIndex]))) = (int16_t)jump;
 }
 
-void Compiler_patchJumpToCurrent(Compiler* self, Code* code, size_t jumpIndex) {
-  Compiler_patchJump(self, code, jumpIndex, code->instructions.length);
+/* TODO This should probably be Code_patchJumpToCurrent */
+void Compiler_patchJumpToCurrent(Code* code, size_t jumpIndex) {
+  Compiler_patchJump(code, jumpIndex, code->instructions.length);
 }
 
 inline static size_t emitBasic(Code* code, size_t line, Instruction i, bool emitReturn) {
@@ -532,7 +534,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
         size_t toPatch = emitJump(self, code, node->line, OP_AND);
         emitNode(self, code, bNode->arg1, true);
 
-        Compiler_patchJumpToCurrent(self, code, toPatch);
+        Compiler_patchJumpToCurrent(code, toPatch);
 
         /*
          * TODO It isn't obvious how to short circuit, respect potential
@@ -552,7 +554,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
         size_t toPatch = emitJump(self, code, node->line, OP_OR);
         emitNode(self, code, bNode->arg1, true);
 
-        Compiler_patchJumpToCurrent(self, code, toPatch);
+        Compiler_patchJumpToCurrent(code, toPatch);
 
         /*
          * TODO It isn't obvious how to short circuit, respect potential
@@ -573,7 +575,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
         emitNode(self, code, tNode->arg1, emitReturn);
 
         size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
-        Compiler_patchJumpToCurrent(self, code, patch0);
+        Compiler_patchJumpToCurrent(code, patch0);
 
         /*
          * TODO If the else branch doesn't emit any instructions, we don't
@@ -585,7 +587,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
         } else {
           emitNode(self, code, tNode->arg2, emitReturn);
         }
-        Compiler_patchJumpToCurrent(self, code, patch1);
+        Compiler_patchJumpToCurrent(code, patch1);
         return result;
       }
 
@@ -606,9 +608,9 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * we already know where we're jumping to.
          */
         size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
-        Compiler_patchJump(self, code, patch1, result);
+        Compiler_patchJump(code, patch1, result);
 
-        Compiler_patchJumpToCurrent(self, code, patch0);
+        Compiler_patchJumpToCurrent(code, patch0);
 
         if(emitReturn) emitInstruction(code, node->line, OP_NIL);
         return result;
