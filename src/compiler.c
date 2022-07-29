@@ -622,18 +622,17 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool useResult) {
         BinaryNode* bNode = (BinaryNode*)node;
 
         /*
-         * TODO This doesn't support a lot of expressions, like
-         * foo.bar = baz, but it's better to fail fast for now until
-         * we can implement those.
-         */
-        assert(bNode->arg0->type == NODE_IDENTIFIER);
-
-        /*
          * TODO Consider storing variables in a separate symbol table,
          * as they have separate performance concerns from strings.
          */
         size_t result = emitNode(self, code, bNode->arg1, true);
 
+        /*
+         * TODO This doesn't support a lot of expressions, like
+         * foo.bar = baz, but it's better to fail fast for now until
+         * we can implement those.
+         */
+        assert(bNode->arg0->type == NODE_IDENTIFIER);
         AtomNode* targetNode = ((AtomNode*)(bNode->arg0));
         Symbol* targetSymbol = Compiler_getSymbol(
             self,
