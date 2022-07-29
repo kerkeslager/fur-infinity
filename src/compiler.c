@@ -40,6 +40,15 @@ Symbol* SymbolStack_peek(SymbolStack* self, uint8_t depth) {
   return *(self->top - 1 - depth);
 }
 
+inline static int16_t SymbolStack_findSymbol(SymbolStack* self, Symbol* symbol) {
+  for(Symbol** s = self->top - 1; s >= self->items; s--) {
+    if(*s == symbol) {
+      return (int16_t)(s - self->items);
+    }
+  }
+  return -1;
+}
+
 void Compiler_init(Compiler* self, Runtime* runtime) {
   SymbolStack_init(&(self->stack));
   self->runtime = runtime;
@@ -278,20 +287,13 @@ void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t l
    * on the thread stack is the same as the location of the symbol
    * on the compiler stack (when read from the bottom).
    */
-  for(Symbol** s = self->stack.top - 1; s >= self->stack.items; s--) {
-    if(*s == name) {
-      /*
-       * TODO We aren't allowing function definitions to assign over
-       * existing variables, but we should give some reasonable error.
-       */
-      /*
-       * TODO We also need to check this in reverse: are we assigning
-       * over a function definition? We don't want to allow that.
-       */
-      assert(allowReassignment);
-      emitByte(code, line, (uint8_t)OP_SET);
-      emitByte(code, line, s - (self->stack.items));
-    }
+  int16_t index = SymbolStack_findSymbol(&(self->stack), name);
+
+  if(index > -1) {
+    assert(allowReassignment);
+    emitInstruction(code, line, OP_SET);
+    emitByte(code, line, index);
+    return;
   }
 
   /*
@@ -384,18 +386,17 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * *compiler* knows if the variable exists. If so, the location
          * on the compiler's symbol stack will be the same as the location
          * of the stored value on the thread's stack, read from the
-         * bottom.
+         * top.
          */
         AtomNode* aNode = (AtomNode*)node;
         Symbol* name = Compiler_getSymbol(self, aNode->length, aNode->text);
 
-        for(Symbol** s = self->stack.top - 1; s >= self->stack.items; s--) {
-          if(*s == name) {
-            size_t result = emitInstruction(code, node->line, OP_GET);
-            emitByte(code, node->line, s - (self->stack.items));
+        int16_t index = SymbolStack_findSymbol(&(self->stack), name);
 
-            return result;
-          }
+        if(index > -1) {
+          size_t result = emitInstruction(code, node->line, OP_GET);
+          emitByte(code, node->line, (uint8_t)index);
+          return result;
         }
 
         /*

@@ -145,13 +145,13 @@ void ObjString_printRepr(ObjString* self) {
         printf("\\\\");
         break;
       case '\n':
-        printf("\\\n");
+        printf("\\n");
         break;
       case '\r':
-        printf("\\\r");
+        printf("\\r");
         break;
       case '\t':
-        printf("\\\t");
+        printf("\\t");
         break;
       default:
         printf("%c", self->characters[i]);
