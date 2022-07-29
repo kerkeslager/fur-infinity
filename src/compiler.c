@@ -10,7 +10,7 @@
 #include "memory.h"
 #include "parser.h"
 
-static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn);
+static size_t emitNode(Compiler* self, Code* code, Node* node, bool useResult);
 
 void SymbolStack_init(SymbolStack* self) {
   self->top = self->items;
@@ -269,8 +269,8 @@ void Compiler_patchJumpToCurrent(Code* code, size_t jumpIndex) {
   Compiler_patchJump(code, jumpIndex, code->instructions.length);
 }
 
-inline static size_t emitBasic(Code* code, size_t line, Instruction i, bool emitReturn) {
-  if(emitReturn) {
+inline static size_t emitBasic(Code* code, size_t line, Instruction i, bool useResult) {
+  if(useResult) {
     return emitInstruction(code, line, i);
   } else {
     return Code_getCurrent(code);
@@ -314,7 +314,7 @@ void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t l
 }
 
 /*
- * emitReturn tells us whether the node should return a value by placing the
+ * useResult tells us whether the node should return a value by placing the
  * item on the stack. This allows us to perform an optimization.
  *
  * In Fur semantics, every statement is an expression, meaning that it returns a
@@ -344,10 +344,10 @@ void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t l
  * implementation, this means we're emitting an OP_NIL followed by OP_DROP,
  * which is obviously not ideal.
  *
- * Passing emitReturn=false to the function compiling `a = 1` lets the function
+ * Passing useResult=false to the function compiling `a = 1` lets the function
  * know whether or not the return is going to be used. If it's not going to be
  * used, we can just not emit the OP_NIL, but in cases where we *do* use the
- * return value, we can pass in emitReturn=true. There are some cases where
+ * return value, we can pass in useResult=true. There are some cases where
  * we will still need to emit an OP_DROP, for example this:
  *
  *     def foo():
@@ -358,21 +358,21 @@ void emitAssignment(Compiler* self, Code* code, bool allowReassignment, size_t l
  * We can't necessarily prevent bar() from returning a value by placing it on
  * the stack, because calls to bar() in other parts of the code might actually
  * use the return value. So when we're compiling the expression `bar()`, we
- * still have to emit an `OP_DROP` afterward if we receive emitReturn=false.
+ * still have to emit an `OP_DROP` afterward if we receive useResult=false.
  * But at least in cases where the expression doesn't have a natural return,
  * we can avoid placing anything on the stack in the first place if it isn't
  * going to be used.
  */
-static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) {
+static size_t emitNode(Compiler* self, Code* code, Node* node, bool useResult) {
   switch(node->type) {
     case NODE_NIL:
-      return emitBasic(code, node->line, OP_NIL, emitReturn);
+      return emitBasic(code, node->line, OP_NIL, useResult);
 
     case NODE_TRUE:
-      return emitBasic(code, node->line, OP_TRUE, emitReturn);
+      return emitBasic(code, node->line, OP_TRUE, useResult);
 
     case NODE_FALSE:
-      return emitBasic(code, node->line, OP_FALSE, emitReturn);
+      return emitBasic(code, node->line, OP_FALSE, useResult);
 
     case NODE_IDENTIFIER:
       {
@@ -381,7 +381,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * so we can do this. However, special idenfitiers might change
          * this in the future, so we need to be careful.
          */
-        if(!emitReturn) return Code_getCurrent(code);
+        if(!useResult) return Code_getCurrent(code);
 
         /*
          * Similar to the NODE_ASSIGN, we have to look to see if the
@@ -456,7 +456,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
 
     case NODE_NUMBER:
       {
-        if(!emitReturn) return Code_getCurrent(code);
+        if(!useResult) return Code_getCurrent(code);
 
         int32_t number = 0;
         char* text = ((AtomNode*)node)->text;
@@ -475,7 +475,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
 
     case NODE_STRING:
       {
-        if(!emitReturn) return Code_getCurrent(code);
+        if(!useResult) return Code_getCurrent(code);
 
         Obj* obj = makeObjString((AtomNode*)node);
 
@@ -491,9 +491,9 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
             self, \
             code, \
             ((UnaryNode*)node)->arg, \
-            emitReturn \
+            useResult \
           ); \
-        if(emitReturn) emitByte(code, node->line, op); \
+        if(useResult) emitByte(code, node->line, op); \
         return result; \
       } while(false)
     case NODE_NEGATE: UNARY_NODE(OP_NEGATE);
@@ -507,10 +507,10 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
             self, \
             code, \
             ((BinaryNode*)node)->arg0, \
-            emitReturn \
+            useResult \
           ); \
-        emitNode(self, code, ((BinaryNode*)node)->arg1, emitReturn); \
-        if(emitReturn) emitByte(code, node->line, op); \
+        emitNode(self, code, ((BinaryNode*)node)->arg1, useResult); \
+        if(useResult) emitByte(code, node->line, op); \
         return result; \
       } while(false)
     BINARY_NODE(NODE_PROPERTY,            OP_PROP);
@@ -542,7 +542,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * a high priority optimizatin, however, since this isn't the
          * usual case.
          */
-        if(!emitReturn) emitInstruction(code, node->line, OP_DROP);
+        if(!useResult) emitInstruction(code, node->line, OP_DROP);
 
         return result;
       }
@@ -562,7 +562,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * a high priority optimizatin, however, since this isn't the
          * usual case.
          */
-        if(!emitReturn) emitInstruction(code, node->line, OP_DROP);
+        if(!useResult) emitInstruction(code, node->line, OP_DROP);
 
         return result;
       }
@@ -572,7 +572,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
         TernaryNode* tNode = (TernaryNode*)node;
         size_t result = emitNode(self, code, tNode->arg0, true);
         size_t patch0 = emitJump(self, code, node->line, OP_JUMP_IF_FALSE);
-        emitNode(self, code, tNode->arg1, emitReturn);
+        emitNode(self, code, tNode->arg1, useResult);
 
         size_t patch1 = emitJump(self, code, node->line, OP_JUMP);
         Compiler_patchJumpToCurrent(code, patch0);
@@ -583,9 +583,9 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          */
 
         if(tNode->arg2 == NULL) {
-          if(emitReturn) emitInstruction(code, node->line, OP_NIL);
+          if(useResult) emitInstruction(code, node->line, OP_NIL);
         } else {
-          emitNode(self, code, tNode->arg2, emitReturn);
+          emitNode(self, code, tNode->arg2, useResult);
         }
         Compiler_patchJumpToCurrent(code, patch1);
         return result;
@@ -612,7 +612,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
 
         Compiler_patchJumpToCurrent(code, patch0);
 
-        if(emitReturn) emitInstruction(code, node->line, OP_NIL);
+        if(useResult) emitInstruction(code, node->line, OP_NIL);
         return result;
       }
 
@@ -648,7 +648,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
             targetSymbol
           );
 
-        if(emitReturn) emitInstruction(code, node->line, OP_NIL);
+        if(useResult) emitInstruction(code, node->line, OP_NIL);
 
         return result;
       }
@@ -657,12 +657,12 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
       {
         ExpressionListNode* elNode = (ExpressionListNode*)node;
 
-        if(elNode->length == 0 && emitReturn) {
+        if(elNode->length == 0 && useResult) {
           return emitInstruction(code, node->line, OP_NIL);
         }
 
         if(elNode->length == 1) {
-          return emitNode(self, code, elNode->items[0], emitReturn);
+          return emitNode(self, code, elNode->items[0], useResult);
         }
 
         /*
@@ -673,7 +673,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
 
         for(size_t i = 1; i < elNode->length - 1; i++) {
           /*
-           * emitReturn is always false for these, since we are discarding
+           * useResult is always false for these, since we are discarding
            * the results anyway.
            */
           emitNode(self, code, elNode->items[i], false);
@@ -683,7 +683,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * Emit the last node outside the loop, so we can return its value
          * if necessary.
          */
-        emitNode(self, code, elNode->items[elNode->length - 1], emitReturn);
+        emitNode(self, code, elNode->items[elNode->length - 1], useResult);
 
         return result;
       }
@@ -731,7 +731,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
          * Function calls always emit a return and it's difficult to change
          * that without adding types.
          */
-        if(!emitReturn) emitInstruction(code, node->line, OP_DROP);
+        if(!useResult) emitInstruction(code, node->line, OP_DROP);
 
         return result;
       }
@@ -766,7 +766,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool emitReturn) 
             node->line,
             name);
 
-        if(emitReturn) emitInstruction(code, node->line, OP_NIL);
+        if(useResult) emitInstruction(code, node->line, OP_NIL);
 
         return result;
       }
