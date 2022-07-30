@@ -2,12 +2,7 @@
 #define FUR_RUNTIME_H
 
 #include "symbol.h"
-
-typedef struct {
-  size_t capacity;
-  size_t load;
-  Symbol** items;
-} SymbolTable;
+#include "symbol_table.h"
 
 typedef struct {
   SymbolTable symbols;
