@@ -327,8 +327,7 @@ Value runString(
     Code* code,
     Thread* thread,
     Options options,
-    char* source,
-    size_t startLine) {
+    Scanner* scanner) {
 
   /*
    * TODO Give the code access to the command line args. Probably in the
@@ -336,15 +335,12 @@ Value runString(
    * the code, and we have access to both argc, and argv there.
    */
 
-  Scanner scanner;
-  Scanner_init(&scanner, startLine, source);
-
   if(options.action == SCAN) {
-    printScan(&scanner);
+    printScan(scanner);
     return Value_fromInt32(0);
   }
 
-  Node* tree = parse(&scanner);
+  Node* tree = parse(scanner);
 
   if(options.action == PARSE) {
     printNode(tree);
@@ -397,13 +393,15 @@ static int repl(Options options) {
       break;
     }
 
+    Scanner scanner;
+    Scanner_init(&scanner, lineNumber, source);
+
     Value result = runString(
       &compiler,
       &code,
       &thread,
       options,
-      source,     // The "source code" read from the repl
-      lineNumber  // The line number to start on
+      &scanner
     );
 
     if(options.action == RUN) {
@@ -465,7 +463,10 @@ int runFile(Options options, char* filename) {
   Thread thread;
   Thread_init(&thread);
 
-  runString(&compiler, &code, &thread, options, source, 1);
+  Scanner scanner;
+  Scanner_init(&scanner, 1, source);
+
+  runString(&compiler, &code, &thread, options, &scanner);
 
   Compiler_free(&compiler);
   Code_free(&code);
