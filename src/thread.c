@@ -240,7 +240,7 @@ inline static Value notEquals(Value arg0, Value arg1) {
   return logicalNot(equals(arg0, arg1));
 }
 
-void Thread_run(Thread* self, Code* code) {
+Value Thread_run(Thread* self, Code* code) {
   /*
    * TODO Wrap the outer level in a closure so we can write assertions against
    * the fact that we should always be within the bounds of the current code's
@@ -595,7 +595,7 @@ void Thread_run(Thread* self, Code* code) {
 
       case OP_RETURN:
         {
-          if(current == NULL) return;
+          if(current == NULL) return Stack_pop(&(self->stack));
 
           assert(fp >= self->stack.items);
           assert(fp < self->stack.top);
