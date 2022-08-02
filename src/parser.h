@@ -104,5 +104,6 @@ inline static ALLOCATE_ONE_IMPL(ExpressionListNode);
 Node* parse(Scanner*);
 
 void Node_free(Node*);
+void Node_print(Node*);
 
 #endif

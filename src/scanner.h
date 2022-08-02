@@ -70,4 +70,6 @@ void Scanner_init(Scanner*, size_t, char*);
 Token Scanner_scan(Scanner*);
 Token Scanner_peek(Scanner*);
 
+void Scanner_printScan(Scanner*);
+
 #endif

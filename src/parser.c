@@ -56,6 +56,158 @@ void NodeType_print(NodeType type) {
   fflush(stdout);
 }
 
+static void UnaryNode_print(char* name, UnaryNode* node) {
+  printf("(%s ", name);
+  Node_print(node->arg);
+  printf(")");
+}
+
+static void BinaryNode_print(char* name, BinaryNode* node) {
+  printf("(%s ", name);
+  Node_print(node->arg0);
+  printf(" ");
+  Node_print(node->arg1);
+  printf(")");
+}
+
+static void TernaryNode_print(char* name, TernaryNode* node) {
+  printf("(%s ", name);
+  Node_print(node->arg0);
+  printf(" ");
+  Node_print(node->arg1);
+
+  // The third argument to an if statement may be null
+  if(node->arg2 != NULL) {
+    printf(" ");
+    Node_print(node->arg2);
+  }
+
+  printf(")");
+}
+
+void Node_print(Node* node) {
+  assert(node != NULL);
+
+  switch(node->type) {
+    case NODE_NIL:
+      printf("nil");
+      break;
+    case NODE_TRUE:
+      printf("true");
+      break;
+    case NODE_FALSE:
+      printf("false");
+      break;
+    case NODE_IDENTIFIER:
+      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
+      break;
+    case NODE_NUMBER:
+      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
+      break;
+    case NODE_STRING:
+      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
+      break;
+
+    case NODE_NEGATE:
+      UnaryNode_print("-", (UnaryNode*)node);
+      break;
+    case NODE_NOT:
+      UnaryNode_print("not", (UnaryNode*)node);
+      break;
+
+    #define MAP_INFIX(type, s) \
+    case type: \
+      BinaryNode_print(#s, (BinaryNode*) node);\
+      break
+    MAP_INFIX(NODE_ADD, +);
+    MAP_INFIX(NODE_SUBTRACT, -);
+    MAP_INFIX(NODE_MULTIPLY, *);
+    MAP_INFIX(NODE_DIVIDE, /);
+    MAP_INFIX(NODE_EQUALS, ==);
+    MAP_INFIX(NODE_NOT_EQUALS, !=);
+    MAP_INFIX(NODE_GREATER_THAN_EQUALS, >=);
+    MAP_INFIX(NODE_LESS_THAN_EQUALS, <=);
+    MAP_INFIX(NODE_GREATER_THAN, >);
+    MAP_INFIX(NODE_LESS_THAN, <);
+    MAP_INFIX(NODE_ASSIGN, =);
+    MAP_INFIX(NODE_AND, and);
+    MAP_INFIX(NODE_OR, or);
+    MAP_INFIX(NODE_PROPERTY, .);
+    MAP_INFIX(NODE_WHILE, while);
+    #undef MAP_INFIX
+
+    case NODE_IF:
+      TernaryNode_print("if", (TernaryNode*)node);
+      break;
+
+    case NODE_FN_DEF:
+      {
+        TernaryNode* tNode = (TernaryNode*)node;
+        printf("(def ");
+        Node_print(tNode->arg0);
+
+        if(tNode->arg1 == NULL) {
+          printf(" () ");
+        } else {
+          assert(false);
+        }
+
+        Node_print(tNode->arg2);
+
+        printf(")");
+      }
+      break;
+
+    case NODE_COMMA_SEPARATED_LIST:
+      {
+        ExpressionListNode* elNode = (ExpressionListNode*)node;
+
+        printf("(");
+        for(size_t i = 0; i < elNode->length; i++) {
+          if(i != 0) printf(" ");
+          Node_print(elNode->items[i]);
+        }
+        printf(")");
+      } break;
+
+    case NODE_EXPRESSION_LIST:
+      {
+        ExpressionListNode* elNode = (ExpressionListNode*)node;
+
+        printf("(do");
+        for(size_t i = 0; i < elNode->length; i++) {
+          printf(" ");
+          Node_print(elNode->items[i]);
+        }
+        printf(")");
+      } break;
+
+    case NODE_CALL:
+      {
+        BinaryNode* bNode = (BinaryNode*)node;
+
+        printf("(__call__ ");
+
+        Node_print(bNode->arg0);
+
+        printf(" (");
+
+        ExpressionListNode* elNode = (ExpressionListNode*)(bNode->arg1);
+
+        for(size_t i = 0; i < elNode->length; i++) {
+          if(i > 0) printf(" ");
+
+          Node_print(elNode->items[i]);
+        }
+
+        printf("))");
+      } break;
+
+    default:
+      assert(false);
+  }
+}
+
 inline static void Node_init(Node* self, NodeType type, size_t line) {
   self->type = type;
   self->line = line;

@@ -25,184 +25,6 @@ typedef struct {
   Action action;
 } Options;
 
-void printScan(Scanner* scanner) {
-  Token token;
-
-  size_t previousLine = 0;
-
-  printf("Line Type               Text\n");
-
-  while((token = Scanner_scan(scanner)).type != TOKEN_EOF) {
-
-    if(token.line == previousLine) {
-      printf("   | ");
-    } else {
-      previousLine = token.line;
-      printf("%4zu ", token.line);
-    }
-
-    const char* tokenTypeString = TokenType_asString(token.type);
-    assert(tokenTypeString != NULL);
-    printf("%-19s", tokenTypeString);
-
-    printf( "\"%.*s\"\n", (int)token.length, token.text);
-  }
-}
-
-static void printNode(Node*);
-
-static void printUnaryNode(char* name, UnaryNode* node) {
-  printf("(%s ", name);
-  printNode(node->arg);
-  printf(")");
-}
-
-static void printBinaryNode(char* name, BinaryNode* node) {
-  printf("(%s ", name);
-  printNode(node->arg0);
-  printf(" ");
-  printNode(node->arg1);
-  printf(")");
-}
-
-static void printTernaryNode(char* name, TernaryNode* node) {
-  printf("(%s ", name);
-  printNode(node->arg0);
-  printf(" ");
-  printNode(node->arg1);
-
-  // The third argument to an if statement may be null
-  if(node->arg2 != NULL) {
-    printf(" ");
-    printNode(node->arg2);
-  }
-
-  printf(")");
-}
-
-static void printNode(Node* node) {
-  assert(node != NULL);
-
-  switch(node->type) {
-    case NODE_NIL:
-      printf("nil");
-      break;
-    case NODE_TRUE:
-      printf("true");
-      break;
-    case NODE_FALSE:
-      printf("false");
-      break;
-    case NODE_IDENTIFIER:
-      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
-      break;
-    case NODE_NUMBER:
-      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
-      break;
-    case NODE_STRING:
-      printf("%.*s", (int)((AtomNode*)node)->length, ((AtomNode*)node)->text);
-      break;
-
-    case NODE_NEGATE:
-      printUnaryNode("-\0", (UnaryNode*)node);
-      break;
-    case NODE_NOT:
-      printUnaryNode("not", (UnaryNode*)node);
-      break;
-
-    #define MAP_INFIX(type, s) \
-    case type: \
-      printBinaryNode(#s, (BinaryNode*) node);\
-      break
-    MAP_INFIX(NODE_ADD, +);
-    MAP_INFIX(NODE_SUBTRACT, -);
-    MAP_INFIX(NODE_MULTIPLY, *);
-    MAP_INFIX(NODE_DIVIDE, /);
-    MAP_INFIX(NODE_EQUALS, ==);
-    MAP_INFIX(NODE_NOT_EQUALS, !=);
-    MAP_INFIX(NODE_GREATER_THAN_EQUALS, >=);
-    MAP_INFIX(NODE_LESS_THAN_EQUALS, <=);
-    MAP_INFIX(NODE_GREATER_THAN, >);
-    MAP_INFIX(NODE_LESS_THAN, <);
-    MAP_INFIX(NODE_ASSIGN, =);
-    MAP_INFIX(NODE_AND, and);
-    MAP_INFIX(NODE_OR, or);
-    MAP_INFIX(NODE_PROPERTY, .);
-    MAP_INFIX(NODE_WHILE, while);
-    #undef MAP_INFIX
-
-    case NODE_IF:
-      printTernaryNode("if", (TernaryNode*)node);
-      break;
-
-    case NODE_FN_DEF:
-      {
-        TernaryNode* tNode = (TernaryNode*)node;
-        printf("(def ");
-        printNode(tNode->arg0);
-
-        if(tNode->arg1 == NULL) {
-          printf(" () ");
-        } else {
-          assert(false);
-        }
-
-        printNode(tNode->arg2);
-
-        printf(")");
-      }
-      break;
-
-    case NODE_COMMA_SEPARATED_LIST:
-      {
-        ExpressionListNode* elNode = (ExpressionListNode*)node;
-
-        printf("(");
-        for(size_t i = 0; i < elNode->length; i++) {
-          if(i != 0) printf(" ");
-          printNode(elNode->items[i]);
-        }
-        printf(")");
-      } break;
-
-    case NODE_EXPRESSION_LIST:
-      {
-        ExpressionListNode* elNode = (ExpressionListNode*)node;
-
-        printf("(do");
-        for(size_t i = 0; i < elNode->length; i++) {
-          printf(" ");
-          printNode(elNode->items[i]);
-        }
-        printf(")");
-      } break;
-
-    case NODE_CALL:
-      {
-        BinaryNode* bNode = (BinaryNode*)node;
-
-        printf("(__call__ ");
-
-        printNode(bNode->arg0);
-
-        printf(" (");
-
-        ExpressionListNode* elNode = (ExpressionListNode*)(bNode->arg1);
-
-        for(size_t i = 0; i < elNode->length; i++) {
-          if(i > 0) printf(" ");
-
-          printNode(elNode->items[i]);
-        }
-
-        printf("))");
-      } break;
-
-    default:
-      assert(false);
-  }
-}
-
 void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
   size_t lineRunIndex = 0;
   size_t lineRunCounter = 0;
@@ -336,14 +158,14 @@ Value runString(
    */
 
   if(options.action == SCAN) {
-    printScan(scanner);
+    Scanner_printScan(scanner);
     return Value_fromInt32(0);
   }
 
   Node* tree = parse(scanner);
 
   if(options.action == PARSE) {
-    printNode(tree);
+    Node_print(tree);
     Node_free(tree);
     return Value_fromInt32(0);
   }

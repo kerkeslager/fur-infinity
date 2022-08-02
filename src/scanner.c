@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "scanner.h"
@@ -567,4 +568,28 @@ Token Scanner_peek(Scanner* self) {
   }
 
   return self->lookahead;
+}
+
+void Scanner_printScan(Scanner* scanner) {
+  Token token;
+
+  size_t previousLine = 0;
+
+  printf("Line Type               Text\n");
+
+  while((token = Scanner_scan(scanner)).type != TOKEN_EOF) {
+
+    if(token.line == previousLine) {
+      printf("   | ");
+    } else {
+      previousLine = token.line;
+      printf("%4zu ", token.line);
+    }
+
+    const char* tokenTypeString = TokenType_asString(token.type);
+    assert(tokenTypeString != NULL);
+    printf("%-19s", tokenTypeString);
+
+    printf( "\"%.*s\"\n", (int)token.length, token.text);
+  }
 }
