@@ -595,6 +595,19 @@ Value Thread_run(Thread* self, Code* code, size_t startIndex) {
 
       case OP_RETURN:
         {
+          /*
+           * TODO
+           * We're leaving global-scoped items on the stack to enable the repl.
+           * This is currently fine in modules, because we don't yet support imports
+           * so when the module returns, its stack is immediately freed because the
+           * thread ends. However, this will keep unnecessary items on the stack
+           * when we have multiple modules.
+           *
+           * A better way to enable the REPL is to parse a single expression instead
+           * of an expression list, and then compile it to a REPL-only OP that
+           * simply pops off the top item and prints it. Then we can compile modules
+           * properly and clean up properly in their returns.
+           */
           if(current == NULL) return Stack_pop(&(self->stack));
 
           assert(fp >= self->stack.items);

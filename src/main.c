@@ -56,24 +56,51 @@ static int repl() {
   Thread_init(&thread);
 
   /*
-   * TODO The scanner inserts pointers to this into the code, so when this gets
-   * overwritten each loop, those pointers break.
-   *
-   * Allocate this dynamically instead, store them on a list, and free it all
-   * once the session ends.
+   * The scanner inserts pointers to the source into the tokens. These pointers
+   * are reused by the parser when building the abstract syntax tree, and again
+   * by the compiler when building the symbol table and symbol stack.
+   * We can't reuse the space we've allocated for lines here, because that would
+   * break these pointers. Instead, we save them off into a list and free them
+   * after the loop ends.
    */
-  char source[1024];
 
-  for(size_t lineNumber = 1; ; lineNumber++) {
-    printf("fur(%zu)> ", lineNumber);
+  typedef struct {
+    size_t length;
+    size_t capacity;
+    char** items;
+  } LineList;
 
-    if (!fgets(source, sizeof(source), stdin)) {
+  LineList lineList;
+  lineList.length = 0;
+  lineList.capacity = 256;
+  lineList.items = malloc(sizeof(char*) * lineList.capacity);
+
+  char* line;
+
+  #define MAX_LINE_LENGTH 1024
+
+  for(;;){
+    line = malloc(MAX_LINE_LENGTH);
+
+    if(lineList.length == lineList.capacity) {
+      lineList.capacity = lineList.capacity * 2;
+      char** tmp = realloc(lineList.items, sizeof(char*) * lineList.capacity);
+      assert(tmp != NULL);
+      lineList.items = tmp;
+    }
+
+    lineList.items[lineList.length] = line;
+    lineList.length++;
+
+    printf("fur(%zu)> ", lineList.length);
+
+    if (!fgets(line, MAX_LINE_LENGTH, stdin)) {
       printf("\n");
       break;
     }
 
     Scanner scanner;
-    Scanner_init(&scanner, lineNumber, source);
+    Scanner_init(&scanner, lineList.length, line);
 
     Node* tree = parse(&scanner);
 
@@ -90,6 +117,13 @@ static int repl() {
     Value_printRepr(result);
     printf("\n");
   }
+
+  #undef MAX_LINE_LENGTH
+
+  for(size_t i = 0; i < lineList.length; i++) {
+    free(lineList.items[i]);
+  }
+  free(lineList.items);
 
   Compiler_free(&compiler);
   Code_free(&code);
