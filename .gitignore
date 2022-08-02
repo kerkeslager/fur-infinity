@@ -2,5 +2,6 @@
 fur
 scanner_test
 parser_test
+symbol_table_test
 .env/
 *.dSYM/
