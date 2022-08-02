@@ -1,2 +1,0 @@
-  1 TOKEN_INTEGER            "42"
-  1 TOKEN_EOF                ""

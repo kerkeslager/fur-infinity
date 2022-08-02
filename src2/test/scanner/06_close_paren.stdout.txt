@@ -1,2 +1,0 @@
-  1 TOKEN_CLOSE_PAREN        ")"
-  1 TOKEN_EOF                ""
