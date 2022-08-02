@@ -1,7 +1,8 @@
 *.o
 fur
-scanner_test
-parser_test
+fur_scan
+fur_parse
+fur_compile
 symbol_table_test
 .env/
 *.dSYM/

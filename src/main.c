@@ -13,24 +13,15 @@
 #include "thread.h"
 #include "value.h"
 
-typedef enum {
-  SCAN,
-  PARSE,
-  COMPILE,
-  RUN,
-} Action;
-
 typedef struct {
   bool help;
   bool version;
-  Action action;
 } Options;
 
 Value runString(
     Compiler* compiler,
     Code* code,
     Thread* thread,
-    Options options,
     Scanner* scanner) {
 
   /*
@@ -39,32 +30,15 @@ Value runString(
    * the code, and we have access to both argc, and argv there.
    */
 
-  if(options.action == SCAN) {
-    Scanner_printScan(scanner);
-    return Value_fromInt32(0);
-  }
-
   Node* tree = parse(scanner);
-
-  if(options.action == PARSE) {
-    Node_print(tree);
-    Node_free(tree);
-    return Value_fromInt32(0);
-  }
 
   size_t startIndex = Compiler_compile(compiler, code, tree);
   Node_free(tree);
 
-  if(options.action == COMPILE) {
-    Code_printAsAssembly(code, startIndex);
-    return Value_fromInt32(0);
-  }
-
-  assert(options.action == RUN);
   return Thread_run(thread, code);
 }
 
-static int repl(Options options) {
+static int repl() {
   /*
    * We want a consistent thread and code to maintain state across evals, so
    * that users can do things in the REPL like:
@@ -102,17 +76,12 @@ static int repl(Options options) {
       &compiler,
       &code,
       &thread,
-      options,
       &scanner
     );
 
-    if(options.action == RUN) {
-      printf("=> ");
-      Value_printRepr(result);
-      printf("\n");
-    } else if(options.action == PARSE) {
-      printf("\n");
-    }
+    printf("=> ");
+    Value_printRepr(result);
+    printf("\n");
   }
 
   Compiler_free(&compiler);
@@ -123,7 +92,7 @@ static int repl(Options options) {
   return 0;
 }
 
-int runFile(Options options, char* filename) {
+int runFile(char* filename) {
   char* source = readFile(filename);
 
   Runtime runtime;
@@ -138,7 +107,7 @@ int runFile(Options options, char* filename) {
   Scanner scanner;
   Scanner_init(&scanner, 1, source);
 
-  runString(&compiler, &code, &thread, options, &scanner);
+  runString(&compiler, &code, &thread, &scanner);
 
   Compiler_free(&compiler);
   Code_free(&code);
@@ -166,8 +135,6 @@ void printHelp() {
   printf("Examples:\n");
   printf("%-30s %-49s\n", "fur",                                  "Run the repl");
   printf("%-30s %-49s\n", "fur program.fur 1 2 3",                "Run `program.fur` with arguments `1`, `2`, and `3`");
-  printf("%-30s %-49s\n", "fur --scan",                           "Run the repl, but output tokens instead of running code (--parse and --bytes work similarly)");
-  printf("%-30s %-49s\n", "fur --scan program.fur",               "Run the scanner on `program.fur` and output scan result instead of running");
 
   printf("\n");
 
@@ -180,16 +147,12 @@ void printHelp() {
   printf("\n");
 
   printf("Options:\n");
-  printf("%-20s %-59s\n", "--compile",              "Don't run code, print the fur assembly");
   printf("%-20s %-59s\n", "-h, --help",             "Print this help text and exit");
-  printf("%-20s %-59s\n", "--parse",                "Don't run code, print a representation of the syntax");
-  printf("%-20s %-59s\n", "--scan",                 "Don't run code, print a representation of the tokens");
   printf("%-20s %-59s\n", "-v, --version",          "Print version information and exit");
 }
 
 int main(int argc, char** argv) {
   Options options;
-  options.action = RUN;
   options.help = false;
   options.version = false;
 
@@ -197,14 +160,8 @@ int main(int argc, char** argv) {
     if(argv[i][0] == '-') {
       if(argv[i][1] == '-') {
         // Long form arguments
-        if(!strcmp("--compile", argv[i])) {
-          options.action = COMPILE;
-        } else if(!strcmp("--help", argv[i])) {
+        if(!strcmp("--help", argv[i])) {
           options.help = true;
-        } else if(!strcmp("--parse", argv[i])) {
-          options.action = PARSE;
-        } else if(!strcmp("--scan", argv[i])) {
-          options.action = SCAN;
         } else if(!strcmp("--version", argv[i])) {
           options.version = true;
         } else {
@@ -234,7 +191,7 @@ int main(int argc, char** argv) {
         }
       }
     } else {
-      return runFile(options, argv[i]);
+      return runFile(argv[i]);
     }
   }
 
@@ -244,7 +201,7 @@ int main(int argc, char** argv) {
   } else if(options.version) {
     printVersion();
   } else {
-    return repl(options);
+    return repl();
   }
 
   return 0;

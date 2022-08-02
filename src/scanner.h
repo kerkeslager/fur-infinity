@@ -2,6 +2,7 @@
 #define FUR_SCANNER_H
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef enum {
   TOKEN_NIL,
