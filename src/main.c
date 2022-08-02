@@ -495,7 +495,6 @@ void printHelp() {
   printf("%-30s %-49s\n", "fur program.fur 1 2 3",                "Run `program.fur` with arguments `1`, `2`, and `3`");
   printf("%-30s %-49s\n", "fur --scan",                           "Run the repl, but output tokens instead of running code (--parse and --bytes work similarly)");
   printf("%-30s %-49s\n", "fur --scan program.fur",               "Run the scanner on `program.fur` and output scan result instead of running");
-  printf("%-30s %-49s\n", "fur -i \"print('Hello, world')\" foo", "Run the fur code \"print('Hello, world')\" with the argument \"foo\"");
 
   printf("\n");
 
@@ -512,7 +511,6 @@ void printHelp() {
   printf("%-20s %-59s\n", "-h, --help",             "Print this help text and exit");
   printf("%-20s %-59s\n", "--parse",                "Don't run code, print a representation of the syntax");
   printf("%-20s %-59s\n", "--scan",                 "Don't run code, print a representation of the tokens");
-  printf("%-20s %-59s\n", "-i, --interpret [arg]",  "Interpret [arg] as fur code");
   printf("%-20s %-59s\n", "-v, --version",          "Print version information and exit");
 }
 
@@ -524,40 +522,7 @@ int main(int argc, char** argv) {
 
   for(int i = 1; i < argc; i++) {
     if(argv[i][0] == '-') {
-      // TODO Capture = arguments like -i="print('Hello, world')"
-      if(!strncmp("-i", argv[i], strlen("-i")) || !strncmp("--interpret", argv[i], strlen("--interpret"))) {
-        i++;
-        if(i == argc) {
-          fprintf(stderr, "-i/--interpret requires an argument\n");
-          printf("Pass -h or --help for more information.\n");
-          return 1;
-        }
-
-        Runtime runtime;
-        Runtime_init(&runtime);
-        Compiler compiler;
-        Compiler_init(&compiler, &runtime);
-        Code code;
-        Code_init(&code);
-        Thread thread;
-        Thread_init(&thread);
-
-        runString(
-          &compiler,
-          &code,
-          &thread,
-          options,
-          argv[i],      // Use the argument as the source
-          1
-        );
-
-        Compiler_free(&compiler);
-        Code_free(&code);
-        Thread_free(&thread);
-        Runtime_free(&runtime);
-
-        return 0;
-      } else if(argv[i][1] == '-') {
+      if(argv[i][1] == '-') {
         // Long form arguments
         if(!strcmp("--compile", argv[i])) {
           options.action = COMPILE;
