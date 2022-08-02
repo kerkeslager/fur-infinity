@@ -240,14 +240,14 @@ inline static Value notEquals(Value arg0, Value arg1) {
   return logicalNot(equals(arg0, arg1));
 }
 
-Value Thread_run(Thread* self, Code* code) {
+Value Thread_run(Thread* self, Code* code, size_t startIndex) {
   /*
    * TODO Wrap the outer level in a closure so we can write assertions against
    * the fact that we should always be within the bounds of the current code's
    * instructions.
    */
   ObjClosure* current = NULL;
-  register uint8_t* ip = code->instructions.items;
+  register uint8_t* ip = code->instructions.items + startIndex;
   register uint8_t instruction;
   Value* fp = self->stack.items; /* TODO Profile adding this to a register. */
 

@@ -44,6 +44,6 @@ typedef struct {
 void Thread_init(Thread*);
 void Thread_free(Thread*);
 
-Value Thread_run(Thread*, Code*);
+Value Thread_run(Thread*, Code*, size_t);
 
 #endif

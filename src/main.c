@@ -22,20 +22,16 @@ Value runString(
     Compiler* compiler,
     Code* code,
     Thread* thread,
-    Scanner* scanner) {
+    Node* tree) {
 
   /*
    * TODO Give the code access to the command line args. Probably in the
    * function that calls this, actually, since that is where we initialize
    * the code, and we have access to both argc, and argv there.
    */
-
-  Node* tree = parse(scanner);
-
   size_t startIndex = Compiler_compile(compiler, code, tree);
-  Node_free(tree);
 
-  return Thread_run(thread, code);
+  return Thread_run(thread, code, startIndex);
 }
 
 static int repl() {
@@ -59,6 +55,13 @@ static int repl() {
   Thread thread;
   Thread_init(&thread);
 
+  /*
+   * TODO The scanner inserts pointers to this into the code, so when this gets
+   * overwritten each loop, those pointers break.
+   *
+   * Allocate this dynamically instead, store them on a list, and free it all
+   * once the session ends.
+   */
   char source[1024];
 
   for(size_t lineNumber = 1; ; lineNumber++) {
@@ -72,12 +75,16 @@ static int repl() {
     Scanner scanner;
     Scanner_init(&scanner, lineNumber, source);
 
+    Node* tree = parse(&scanner);
+
     Value result = runString(
       &compiler,
       &code,
       &thread,
-      &scanner
+      tree
     );
+
+    Node_free(tree);
 
     printf("=> ");
     Value_printRepr(result);
@@ -107,7 +114,11 @@ int runFile(char* filename) {
   Scanner scanner;
   Scanner_init(&scanner, 1, source);
 
-  runString(&compiler, &code, &thread, &scanner);
+  Node* tree = parse(&scanner);
+
+  runString(&compiler, &code, &thread, tree);
+
+  Node_free(tree);
 
   Compiler_free(&compiler);
   Code_free(&code);
