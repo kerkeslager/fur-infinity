@@ -8,6 +8,7 @@
 #include "compiler.h"
 #include "memory.h"
 #include "parser.h"
+#include "read_file.h"
 #include "scanner.h"
 #include "thread.h"
 #include "value.h"
@@ -24,125 +25,6 @@ typedef struct {
   bool version;
   Action action;
 } Options;
-
-void printCodeAsAssembly(Code* code, size_t startInstructionIndex) {
-  size_t lineRunIndex = 0;
-  size_t lineRunCounter = 0;
-
-  #define INCREMENT_LINE() \
-    do { \
-      assert(lineRunIndex < code->lineRuns.length); \
-      if(lineRunCounter == code->lineRuns.items[lineRunIndex].run) { \
-        lineRunIndex++; \
-      } \
-    } while(false)
-
-
-  // Run the line up to the current spot
-  for(size_t i = 0; i < startInstructionIndex; i++) {
-    INCREMENT_LINE();
-  }
-
-  for(size_t i = startInstructionIndex; i < code->instructions.length; i++) {
-    char opString[32] = "";
-    char argString[32] = "";
-
-    INCREMENT_LINE();
-    #undef INCREMENT_LINE
-
-    size_t instructionIndex = i;
-    size_t line = code->lineRuns.items[lineRunIndex].line;
-
-    switch(code->instructions.items[i]) {
-      case OP_INTEGER:
-        strcpy(opString, "push_int");
-        sprintf(
-            argString,
-            "%d",
-            *((int32_t*)(code->instructions.items + i + 1))
-        );
-        i += sizeof(int32_t);
-        break;
-      case OP_STRING:
-        strcpy(opString, "push_string");
-        i++;
-        sprintf(
-            argString,
-            "%d",
-            code->instructions.items[i]
-        );
-        break;
-
-      #define ONE_BYTE_ARG(op, name) \
-        case op: \
-          strcpy(opString, #name); \
-          i++; \
-          sprintf( \
-              argString, \
-              "%d", \
-              code->instructions.items[i] \
-          ); \
-          break
-      ONE_BYTE_ARG(OP_SET, set);
-      ONE_BYTE_ARG(OP_GET, get);
-      ONE_BYTE_ARG(OP_CALL, call);
-      ONE_BYTE_ARG(OP_NATIVE, native);
-      #undef ONE_BYTE_ARG
-
-      #define JUMP(op, name) \
-        case op: \
-          strcpy(opString, #name); \
-          i++; \
-          sprintf( \
-              argString, \
-              "%i", \
-              *((int16_t*)&(code->instructions.items[i])) \
-          ); \
-          i++; \
-          break
-      JUMP(OP_JUMP, jump);
-      JUMP(OP_JUMP_IF_TRUE, jump_if_true);
-      JUMP(OP_JUMP_IF_FALSE, jump_if_false);
-      JUMP(OP_AND, and_jump);
-      JUMP(OP_OR, or_jump);
-      #undef JUMP
-
-      #define MAP(op, name) \
-      case op: \
-        strcpy(opString, #name); \
-        break
-      MAP(OP_NIL, push_nil);
-      MAP(OP_TRUE, push_true);
-      MAP(OP_FALSE, push_false);
-      MAP(OP_DROP, drop);
-
-      MAP(OP_ADD, add);
-      MAP(OP_SUBTRACT, sub);
-      MAP(OP_MULTIPLY, mul);
-        // This is "integer divide", i.e. 3 / 2 = 1
-        // Distinguished from "divide", i.e. 3 / 2 = 1.5
-      MAP(OP_DIVIDE, int_div);
-      MAP(OP_NEGATE, neg);
-      MAP(OP_NOT, not);
-      MAP(OP_RETURN, ret);
-      MAP(OP_EQ, eq);
-      MAP(OP_LT, lt);
-      MAP(OP_GT, gt);
-      MAP(OP_NEQ, neq);
-      MAP(OP_GEQ, geq);
-      MAP(OP_LEQ, leq);
-      MAP(OP_PROP, prop);
-      #undef MAP
-
-      default:
-        printf("Number: %i\n", code->instructions.items[i]);
-        fflush(stdout);
-        assert(false);
-    }
-
-    printf("%-20s %-5s; inst: %zu, line:%zu\n", opString, argString, instructionIndex, line);
-  }
-}
 
 Value runString(
     Compiler* compiler,
@@ -174,7 +56,7 @@ Value runString(
   Node_free(tree);
 
   if(options.action == COMPILE) {
-    printCodeAsAssembly(code, startIndex);
+    Code_printAsAssembly(code, startIndex);
     return Value_fromInt32(0);
   }
 
@@ -239,36 +121,6 @@ static int repl(Options options) {
   Runtime_free(&runtime);
 
   return 0;
-}
-
-static char* readFile(const char* path) {
-  FILE* file = fopen(path, "rb");
-
-  if (file == NULL) {
-    fprintf(stderr, "Could not open file \"%s\".\n", path);
-    exit(1);
-  }
-
-  fseek(file, 0L, SEEK_END);
-  size_t fileSize = ftell(file);
-  rewind(file);
-
-  char* buffer = allocateChars(fileSize + 1);
-
-  if (buffer == NULL) {
-    fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
-    exit(1);
-  }
-
-  size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
-  if (bytesRead < fileSize) {
-    fprintf(stderr, "Could not read file \"%s\".\n", path);
-    exit(1);
-  }
-  buffer[bytesRead] = '\0';
-
-  fclose(file);
-  return buffer;
 }
 
 int runFile(Options options, char* filename) {

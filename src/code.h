@@ -78,4 +78,6 @@ size_t Code_getCurrent(Code*);
 
 Obj* Code_getInterned(Code* self, uint8_t index);
 
+void Code_printAsAssembly(Code*, size_t startInstructionIndex);
+
 #endif
