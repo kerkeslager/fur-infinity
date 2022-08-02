@@ -102,7 +102,7 @@ static int repl() {
     Scanner scanner;
     Scanner_init(&scanner, lineList.length, line);
 
-    Node* tree = parse(&scanner);
+    Node* tree = parseStatement(&scanner);
 
     Value result = runString(
       &compiler,

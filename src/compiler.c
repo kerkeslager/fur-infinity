@@ -19,6 +19,15 @@ void SymbolStack_init(SymbolStack* self) {
 void SymbolStack_free(SymbolStack* self) {
 }
 
+void SymbolStack_print(SymbolStack* self) {
+  printf("[");
+  for(Symbol** s = self->items; s < self->top; s++) {
+    printf(" ");
+    Symbol_printRepr(*s);
+  }
+  printf(" ]");
+}
+
 void SymbolStack_push(SymbolStack* self, Symbol* value) {
   // TODO Handle this.
   assert((self->top - self->items) < MAX_SYMBOLSTACK_DEPTH);
@@ -52,7 +61,7 @@ inline static int16_t SymbolStack_findSymbol(SymbolStack* self, Symbol* symbol) 
 void Compiler_init(Compiler* self, Runtime* runtime) {
   SymbolStack_init(&(self->stack));
   self->runtime = runtime;
-  self->scope = 0;
+  self->scopeBoundary = self->stack.items;
 }
 
 void Compiler_free(Compiler* self) {
@@ -95,32 +104,14 @@ inline static size_t emitInstruction(Code* code, size_t line, Instruction i) {
 }
 
 inline static Obj* makeObjClosure(Compiler* self, Symbol* name, Node* arguments, Node* body) {
-  /* Pretty unlikely we go this deep, but it doesn't hurt to check it. */
-  assert(self->scope < SIZE_MAX);
-  self->scope++;
+  assert(self->scopeBoundary - self->stack.items < MAX_SYMBOLSTACK_DEPTH);
+  Symbol** parentScopeBoundary = self->scopeBoundary;
+  self->scopeBoundary = self->stack.top;
 
   /*
    * TODO Allow name == NULL, which we will need for lambdas.
    */
   assert(name != NULL);
-
-  /*
-   * If arguments == NULL, there are no arguments.
-   * If arguments->type == NODE_IDENTIFIER, there is one argument.
-   * If arguments->type == NODE_COMMA_SEPARATED_LIST, there are multiple arguments.
-   */
-  assert(arguments == NULL ||
-      arguments->type == NODE_IDENTIFIER ||
-      arguments->type == NODE_COMMA_SEPARATED_LIST);
-
-  /*
-   * TODO For now we only support no-argument functions.
-   */
-  assert(arguments == NULL);
-
-  if(body == NULL) {
-    assert(false); /* TODO Allow empty function bodies (just return nil). */
-  }
 
   /*
    * TODO Code_init does a few things which aren't great for functions.
@@ -130,14 +121,62 @@ inline static Obj* makeObjClosure(Compiler* self, Symbol* name, Node* arguments,
   Code* functionCode = Code_allocateOne();
   Code_init(functionCode);
 
+  /*
+   * If arguments == NULL, there are no arguments.
+   * If arguments->type == NODE_IDENTIFIER, there is one argument.
+   * If arguments->type == NODE_COMMA_SEPARATED_LIST, there are multiple arguments.
+   */
+  uint8_t arity;
+  if(arguments == NULL) {
+    arity = 0;
+  } else if(arguments->type == NODE_IDENTIFIER) {
+    arity = 1;
+    /*
+     * At the point the function is called, the argument is already sitting
+     * on top of the execution stack, so we just need to push the symbol to the
+     * corresponding location on the symbol stack.
+     */
+    AtomNode* arg = (AtomNode*)arguments;
+    Symbol* argSymbol = Runtime_getSymbol(self->runtime, arg->length, arg->text);
+    SymbolStack_push(&(self->stack), argSymbol);
+  } else if(arguments->type == NODE_COMMA_SEPARATED_LIST) {
+    ExpressionListNode* argList = (ExpressionListNode*)arguments;
+    assert(argList->length <= UINT8_MAX);
+    arity = argList->length;
+
+    /*
+     * At the point the function is called, the arguments are already sitting in order
+     * on top of the execution stack, so we just need to push symbols to the
+     * corresponding location on the symbol stack.
+     */
+    for(uint8_t i = 0; i < arity; i++) {
+      Node* argNode = argList->items[i];
+      assert(argNode->type == NODE_IDENTIFIER);
+      AtomNode* arg = (AtomNode*)argNode;
+      Symbol* argSymbol = Runtime_getSymbol(self->runtime, arg->length, arg->text);
+      SymbolStack_push(&(self->stack), argSymbol);
+    }
+  } else {
+    assert(false);
+  }
+
+  if(body == NULL) {
+    assert(false); /* TODO Allow empty function bodies (just return nil). */
+  }
+
   emitNode(self, functionCode, body, true);
 
   /* TODO This line number isn't really right */
   emitInstruction(functionCode, body->line, OP_RETURN);
-  self->scope--;
+
+  while(self->stack.top > self->scopeBoundary) {
+    SymbolStack_pop(&(self->stack));
+  }
+
+  self->scopeBoundary = parentScopeBoundary;
 
   ObjClosure* result = ObjClosure_allocateOne();
-  ObjClosure_init(result, name, 0, functionCode);
+  ObjClosure_init(result, name, arity, functionCode);
   return (Obj*)result;
 }
 
@@ -396,9 +435,25 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool useResult) {
         int16_t index = SymbolStack_findSymbol(&(self->stack), name);
 
         if(index > -1) {
-          size_t result = emitInstruction(code, node->line, OP_GET);
-          emitByte(code, node->line, (uint8_t)index);
-          return result;
+          assert(index <= UINT8_MAX);
+          assert(self->scopeBoundary >= self->stack.items);
+          size_t scopeDepth = self->scopeBoundary - self->stack.items;
+          assert(scopeDepth <= UINT8_MAX);
+
+          if((uint8_t)index < (uint8_t)scopeDepth) {
+            /*
+             * This means we're getting a variable outside the current function,
+             * a.k.a. closing over it.
+             */
+            /*
+             * TODO Implement.
+             */
+            assert(false);
+          } else {
+            size_t result = emitInstruction(code, node->line, OP_GET);
+            emitByte(code, node->line, (uint8_t)index - (uint8_t)scopeDepth);
+            return result;
+          }
         }
 
         /*
@@ -481,7 +536,7 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool useResult) {
         Obj* obj = makeObjString((AtomNode*)node);
 
         uint8_t index = Code_internObject(code, (Obj*)obj);
-        size_t result = emitInstruction(code, node->line, OP_STRING);
+        size_t result = emitInstruction(code, node->line, OP_INTERN);
         emitByte(code, node->line, index);
         return result;
       } break;
@@ -746,6 +801,18 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool useResult) {
             ((AtomNode*)nameNode)->text
           );
 
+
+        emitAssignment(
+            self,
+            code,
+            false, /* Don't allow reassignment */
+            node->line,
+            name);
+
+        /*
+         * This needs to be after the emitAssignment, so that the symbiol for
+         * the function gets emitted before the symbols for the arguments.
+         */
         Obj* obj = makeObjClosure(
           self,
           name,
@@ -755,16 +822,8 @@ static size_t emitNode(Compiler* self, Code* code, Node* node, bool useResult) {
 
         uint8_t index = Code_internObject(code, obj);
 
-        /* TODO Obviously OP_STRING should be OP_OBJ now */
-        size_t result = emitInstruction(code, node->line, OP_STRING);
+        size_t result = emitInstruction(code, node->line, OP_INTERN);
         emitByte(code, node->line, index);
-
-        emitAssignment(
-            self,
-            code,
-            false, /* Don't allow reassignment */
-            node->line,
-            name);
 
         if(useResult) emitInstruction(code, node->line, OP_NIL);
 

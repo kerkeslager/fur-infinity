@@ -24,7 +24,7 @@ Symbol* SymbolStack_peek(SymbolStack*, uint8_t depth);
 typedef struct {
   Runtime* runtime;
   SymbolStack stack;
-  size_t scope;
+  Symbol** scopeBoundary;
 } Compiler;
 
 void Compiler_init(Compiler*, Runtime*);

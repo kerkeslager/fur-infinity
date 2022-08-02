@@ -65,12 +65,14 @@ Value Stack_peek(Stack* self) {
 }
 
 #ifdef DEBUG
-void Stack_print(Stack* self) {
+void Stack_print(Stack* self, Value* fp) {
   printf("[");
   for(Value* v = self->items; v < self->top; v++) {
+    if(v == fp) printf(" |");
     printf(" ");
     Value_printRepr(*v);
   }
+  if(self->top == fp) printf(" |");
   printf(" ]");
 }
 #endif
@@ -264,20 +266,20 @@ Value Thread_run(Thread* self, Code* code, size_t startIndex) {
      */
     instruction = *ip;
 
+    #ifdef DEBUG
+    Stack_print(&(self->stack), fp);
+    printf(" ");
+    Instruction_print(instruction);
+    printf("\n");
+    fflush(stdout);
+    #endif
+
     /*
      * We increment the index *immediately* so we don't have to remember to
      * increment it in every single case statement.
      */
     ip++;
 
-
-    #ifdef DEBUG
-    Stack_print(&(self->stack));
-    printf(" ");
-    Instruction_print(instruction);
-    printf("\n");
-    fflush(stdout);
-    #endif
 
     switch(instruction) {
       case OP_GET:
@@ -335,7 +337,7 @@ Value Thread_run(Thread* self, Code* code, size_t startIndex) {
           ip += sizeof(int32_t);
         } break;
 
-      case OP_STRING:
+      case OP_INTERN:
         {
           Stack_push(
             &(self->stack),

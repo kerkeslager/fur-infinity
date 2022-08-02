@@ -97,11 +97,8 @@ typedef struct {
 
 inline static ALLOCATE_ONE_IMPL(ExpressionListNode);
 
-/*
- * TODO It might be even better to just pass in source, and also hide
- * the Scanner type.
- */
 Node* parse(Scanner*);
+Node* parseStatement(Scanner*);
 
 void Node_free(Node*);
 void Node_print(Node*);

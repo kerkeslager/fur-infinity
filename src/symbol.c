@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -14,4 +15,11 @@ void Symbol_init(Symbol* self, uint32_t h, size_t length, char* name) {
   self->hash = h;
   self->length = length;
   self->name = name;
+}
+
+void Symbol_printRepr(Symbol* self) {
+  printf(":");
+  for(uint8_t i = 0; i < self->length; i++) {
+    printf("%c", self->name[i]);
+  }
 }

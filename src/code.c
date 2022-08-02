@@ -36,7 +36,7 @@ void Instruction_print(Instruction i) {
     MAP(OP_PROP);
     MAP(OP_RETURN);
     MAP(OP_SET);
-    MAP(OP_STRING);
+    MAP(OP_INTERN);
     MAP(OP_SUBTRACT);
     MAP(OP_TRUE);
     #undef MAP
@@ -191,8 +191,8 @@ void Code_printAsAssembly(Code* code, size_t startInstructionIndex) {
         );
         i += sizeof(int32_t);
         break;
-      case OP_STRING:
-        strcpy(opString, "push_string");
+      case OP_INTERN:
+        strcpy(opString, "push_intern");
         i++;
         sprintf(
             argString,

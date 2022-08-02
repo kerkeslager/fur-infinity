@@ -83,13 +83,6 @@ bool Obj_equals(Obj* self, Obj* other) {
   assert(false);
 }
 
-void Symbol_printRepr(Symbol* self) {
-  printf(":");
-  for(uint8_t i = 0; i < self->length; i++) {
-    printf("%c", self->name[i]);
-  }
-}
-
 void ObjClosure_printRepr(ObjClosure* self) {
   printf("<closure ");
   Symbol_printRepr(self->name);
@@ -260,6 +253,8 @@ Value nativePrint(uint8_t argc, Value* argv) {
         assert(false); // TODO Handle other types
     }
   }
+
+  fflush(stdout);
 
   Value result;
   result.is_a = TYPE_NIL;

@@ -14,5 +14,6 @@ typedef struct {
 } Symbol;
 
 void Symbol_init(Symbol*, uint32_t h, size_t length, char*);
+void Symbol_printRepr(Symbol*);
 
 #endif

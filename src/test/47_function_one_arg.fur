@@ -1,0 +1,5 @@
+def inc(a):
+  a + 1
+end
+
+print(inc(41), '\n')

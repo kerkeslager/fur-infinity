@@ -410,7 +410,7 @@ static Node* parseCall(Scanner* scanner, size_t line) {
   }
 
   for(;;) {
-    Node* expr = parseExpression(scanner, PREC_ANY);
+    Node* expr = parseStatement(scanner);
 
     ExpressionListNode_append(elNode, expr);
 
@@ -433,7 +433,14 @@ Node* parseFunctionDefinition(Scanner* scanner, size_t line) {
   token = Scanner_scan(scanner);
   assert(token.type == TOKEN_OPEN_PAREN);
 
+  Node* arguments = NULL;
   token = Scanner_scan(scanner);
+
+  if(token.type == TOKEN_IDENTIFIER) {
+    arguments = (Node*)makeAtomNode(token);
+    token = Scanner_scan(scanner);
+  }
+
   assert(token.type == TOKEN_CLOSE_PAREN);
 
   token = Scanner_scan(scanner);
@@ -446,7 +453,7 @@ Node* parseFunctionDefinition(Scanner* scanner, size_t line) {
   token = Scanner_scan(scanner);
   assert(token.type == TOKEN_END);
 
-  return makeTernaryNode(NODE_FN_DEF, line, name, NULL, body);
+  return makeTernaryNode(NODE_FN_DEF, line, name, arguments, body);
 }
 
 Node* parseIf(Scanner* scanner, size_t line) {
@@ -541,6 +548,9 @@ Node* parseExpression(Scanner* scanner, Precedence minimumBindingPower) {
 
   switch(token.type) {
     case TOKEN_EOF:
+      /*
+       * TODO Return an EOF node, so that we can assert against it in the REPL.
+       */
       return NULL;
 
     /* Atoms */
@@ -766,7 +776,7 @@ Node* parseExpressionList(Scanner* scanner, uint8_t expectedExitCount, TokenType
     return NULL;
   }
 
-  Node* first = parseExpression(scanner, PREC_ANY);
+  Node* first = parseStatement(scanner);
 
   token = Scanner_peek(scanner);
 
@@ -784,7 +794,7 @@ Node* parseExpressionList(Scanner* scanner, uint8_t expectedExitCount, TokenType
       return (Node*)node;
     }
 
-    ExpressionListNode_append(node, parseExpression(scanner, PREC_ANY));
+    ExpressionListNode_append(node, parseStatement(scanner));
     token = Scanner_peek(scanner);
   }
 }
@@ -793,4 +803,8 @@ Node* parse(Scanner* scanner) {
   TokenType exit = TOKEN_EOF;
 
   return parseExpressionList(scanner, 1, &exit);
+}
+
+Node* parseStatement(Scanner* scanner) {
+  return parseExpression(scanner, PREC_ANY);
 }
