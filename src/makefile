@@ -7,7 +7,7 @@ all: clean code.o compiler.o object.o parser.o runtime.o scanner.o symbol.o symb
 symbol_table_test: symbol.o symbol_table.o symbol_table_test.o
 	$(CC) $(CFLAGS) symbol.o symbol_table.o symbol_table_test.o -o symbol_table_test
 
-test: debug
+test: all
 	python3 integration_tests.py
 
 clean: clean.o
