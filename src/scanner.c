@@ -181,7 +181,7 @@ static bool isNumeric(char ch) {
 }
 
 static Token Scanner_scanIdentifier(Scanner* self, char* start) {
-  while(isAlphaNumeric(*(self->current))) self->current++;
+  while(isAlphaNumeric(*(self->current)) || *(self->current) == '_') self->current++;
 
   /*
    * Identifiers may not be any longer than 255 characters.

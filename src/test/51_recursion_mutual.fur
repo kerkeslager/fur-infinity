@@ -1,0 +1,13 @@
+def ping(n):
+  if n < 10:
+    print('ping\n')
+    pong(n + 1)
+  end
+end
+
+def pong(n):
+  if n < 10:
+    print('pong\n')
+    ping(n + 1)
+  end
+end

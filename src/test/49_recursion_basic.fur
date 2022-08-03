@@ -1,0 +1,9 @@
+def sum_of_range(start, stop):
+  if start < stop:
+    start + sum_of_range(start + 1, stop)
+  else
+    stop
+  end
+end
+
+print(sum_of_range(2, 7), '\n')
