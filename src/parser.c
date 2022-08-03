@@ -148,6 +148,27 @@ void Node_print(Node* node) {
 
         if(tNode->arg1 == NULL) {
           printf(" () ");
+        } else if(tNode->arg1->type == NODE_IDENTIFIER) {
+          AtomNode* arg = (AtomNode*)(tNode->arg1);
+          printf(" (");
+          for(size_t i = 0; i < arg->length; i++) {
+            printf("%c", arg->text[i]);
+          }
+          printf(") ");
+        } else if(tNode->arg1->type == NODE_COMMA_SEPARATED_LIST) {
+          ExpressionListNode* elNode = (ExpressionListNode*)(tNode->arg1);
+          printf(" (");
+          for(size_t i = 0; i < elNode->length; i++) {
+            if(i != 0) printf(" ");
+
+            assert(elNode->items[i]->type == NODE_IDENTIFIER);
+            AtomNode* arg = (AtomNode*)(elNode->items[i]);
+
+            for(size_t j = 0; j < arg->length; j++) {
+              printf("%c", arg->text[j]);
+            }
+          }
+          printf(") ");
         } else {
           assert(false);
         }
@@ -439,6 +460,28 @@ Node* parseFunctionDefinition(Scanner* scanner, size_t line) {
   if(token.type == TOKEN_IDENTIFIER) {
     arguments = (Node*)makeAtomNode(token);
     token = Scanner_scan(scanner);
+  }
+
+  if(token.type == TOKEN_COMMA) {
+    ExpressionListNode* argumentList = ExpressionListNode_allocateOne();
+    ExpressionListNode_init(argumentList, NODE_COMMA_SEPARATED_LIST, arguments->line);
+    ExpressionListNode_append(argumentList, arguments);
+
+    token = Scanner_scan(scanner);
+    assert(token.type == TOKEN_IDENTIFIER);
+    ExpressionListNode_append(argumentList, (Node*)makeAtomNode(token));
+
+    token = Scanner_scan(scanner);
+
+    while(token.type == TOKEN_COMMA) {
+      token = Scanner_scan(scanner);
+      assert(token.type == TOKEN_IDENTIFIER);
+      AtomNode* aNode = (AtomNode*)makeAtomNode(token);
+      ExpressionListNode_append(argumentList, (Node*)aNode);
+      token = Scanner_scan(scanner);
+    }
+
+    arguments = (Node*)argumentList;
   }
 
   assert(token.type == TOKEN_CLOSE_PAREN);
